@@ -145,9 +145,14 @@ def daily_climate( catchments,temperature_path = "SMHI_pthbv_pr_1980_2024_daily.
 
 # %%
 
-# first load in your cacthment shapefile make sure its in SWEREF TM99
-cats = gpd.read_file(r"shapefile.shp").replace(-9999,pd.NA) # Fixed cacthments
-cats.crs = 'EPSG:3006'
+# first load in your cacthment shapefile make sure its in SWEREF TM99 if you load just the shapefile you have to manually set the projection
+# cats = gpd.read_file(r"shapefile.shp").replace(-9999,pd.NA) # Fixed cacthments
+# cats.crs = 'EPSG:3006'
+
+# or if you have it as a zip file you can load it with the projection
+zip_catch = r"catch.zip"
+cats = gpd.read_file(f"zip://{zip_catch}").replace(-9999,pd.NA)
+
 
 # select which variable is your id column in the, in my case its called mvm_id. This is to loop through all the ids of your shapefile.
 id_var = 'mvm_id'
@@ -160,9 +165,9 @@ precipitation_path = "SMHI_pthbv_pr_1980_2024_daily.nc"
 temperature_path = "SMHI_pthbv_tas_1980_2024_daily.nc"
 
 # Run the function daily climate to generate a df that has an id column a time column and then both precipitation and temperature aggregated for each cacthment. 
-daily = daily_climate( catchments = cats,temperature_path = "SMHI_pthbv_tas_1980_2024_daily.nc" , precipitation_path = "SMHI_pthbv_pr_1980_2024_daily.nc", id_variable = "mvm_id", date_range = slice("2013-01-01", "2022-12-31"))
+daily = daily_climate( catchments = cats,temperature_path = "SMHI_pthbv_tas_1980_2024_daily.nc" , precipitation_path = "SMHI_pthbv_pr_1980_2024_daily.nc", id_variable = "mvm_id", date_range = slice("1984-01-01", "2024-12-31"))
 
 os.chdir(r"../Output")
 
-daily.to_csv("daily_climate_51.csv", index = False)
+daily.to_csv("daily_climate_316.csv", index = False)
 # %%
