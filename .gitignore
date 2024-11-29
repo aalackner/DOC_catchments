@@ -162,9 +162,7 @@ cython_debug/
 #.idea/
 
 
-### Filesystem within
+### Ignore Results, and Input within repository
 
 Input/
-Output/
-shapefile/
-maps/
+Results/
