@@ -1,17 +1,17 @@
 # Parse arguments
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("f", type=str, help="folder for the the raster")
-parser.add_argument("c", type=str, help="the catchments")
-parser.add_argument("o", type=str, help="the output")
-parser.add_argument("sy", type=int, help="start year")
-parser.add_argument("ey", type=int, help="end year")
+parser.add_argument("-f", type=str, help="folder for the the raster")
+parser.add_argument("-c", type=str, help="the catchments")
+parser.add_argument("-o", type=str, help="the output")
+parser.add_argument("-sy", type=int, help="start year")
+parser.add_argument("-ey", type=int, help="end year")
 
 args = parser.parse_args()
 date_range = slice(f"{args.sy}-01-01", f"{args.ey}-12-31")
 zip_catch = args.c
 output_file = args.o
-# %%
+
 # packages needed to run discharge application 
 from shapely.geometry import Polygon
 import os
@@ -21,7 +21,7 @@ import xarray as xr
 from shapely.geometry import mapping
 import pandas as pd
 import numpy as np
-# %%
+
 # functions for climate agggregation
 
 def extract_var (mvm_id,  cats, id_var, df, var, date_range): 
@@ -144,7 +144,7 @@ def daily_climate( catchments,temperature_path = "SMHI_pthbv_pr_1980_2024_daily.
             precip['time'] = precip['time'].dt.date
             current = precip.merge(temp, on = 'time', )
             current['mvm_id'] = id
-            climate_data = pd.concat([climate_data,current], axis = 0)
+            climate_data = pd.concat([climate_data if not climate_data.empty else None,current], axis = 0)
         except Exception as e:
             print(f"Error processing ID {id}: {e}")
             failed.append(id)
@@ -153,7 +153,6 @@ def daily_climate( catchments,temperature_path = "SMHI_pthbv_pr_1980_2024_daily.
 
     return(climate_data)
 
-# %%
 
 # first load in your cacthment shapefile make sure its in SWEREF TM99 if you load just the shapefile you have to manually set the projection
 # cats = gpd.read_file(r"shapefile.shp").replace(-9999,pd.NA) # Fixed cacthments
