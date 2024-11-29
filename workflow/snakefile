@@ -1,0 +1,17 @@
+rule aggregate_daily_climate:
+    output:
+        "results/climate/daily_climate.csv"
+    input:
+        "input/shapefile/catchments.zip"
+    log:
+        "logs/climate/daily_climate_log.txt"
+    params:
+        start_year = "2010",
+        end_year = "2010",
+        folder = "input/SMHI"
+    container: 
+        "oras://community.wave.seqera.io/library/geopandas_netcdf4_numpy_pandas_pruned:3ea6865107ad1b1a"
+    shell:
+        """
+        python scripts/climate_aggregation.py -o {output} -c {input} -f {params.folder} -sy {params.start_year} -ey {params.end_year} >{log}
+        """
