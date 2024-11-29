@@ -164,5 +164,16 @@ cython_debug/
 
 ### Ignore Results, and Input within repository
 
+input/
 Input/
+results/
 Results/
+logs/
+Logs/
+
+# Ignore snakemake 
+
+.snakemake/
+
+# Ignore logs 
+
