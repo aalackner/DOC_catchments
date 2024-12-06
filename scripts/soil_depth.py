@@ -47,7 +47,7 @@ output_folder = "Results/Maps"  # Folder to save maps
 os.makedirs(output_folder, exist_ok=True)
 
 # Step 1: Read the shapefile (example)
-gdf = gdf_catch # .iloc[1:3]  # Adjust for the number of catchments you want to process
+gdf = gdf_catch.iloc[1:3]  # Adjust for the number of catchments you want to process
 
 # Step 2: Prepare to collect results and failures
 statistics_results = []
