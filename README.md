@@ -42,3 +42,7 @@ name:   soil_depth.py
 ## MVM water chemistry
 
 name:    get_water_chem.r
+
+## NDVI 
+
+Uses Google Earth Engine to download NDVI from Landsat data, as monthly timeseries for each catchment.
