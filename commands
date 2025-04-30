@@ -1,0 +1,23 @@
+##########
+
+Commands to put into the consule if you don't want to use snakemake
+
+##########
+
+###### WINDOWS #######
+
+
+CLIMATE
+
+python scripts\climate_aggregation.py -o results\climate\climate_trendlakes.csv -c data\aro_trendsjöar_106_250408.zip -f input\SMHI -sy 1990 -ey 2024 -res month
+
+python scripts\climate_aggregation.py -o results\climate\climate_omdrevlakes.csv -c data\aro_omdrevsjöar_5127_250227.zip -f input\SMHI -sy 1990 -ey 2024 -res month
+
+
+PEAT
+
+(& "C:\Users\anlr0006\AppData\Local\Programs\ArcGIS\Pro\bin\Python\Scripts\conda.exe" "shell.powershell" "hook") | Out-String | Invoke-Expression
+
+conda activate C:\Users\anlr0006\repos-win\DOC_catchments\arcpy_env
+
+python scripts\peat_area.py -o C:\Users\anlr0006\repos-win\DOC_catchments\results\slu_sgu\peat_trendlakes.csv -c C:\Users\anlr0006\repos-win\DOC_catchments\data\aro_trendsjöar_106_250408.zip -r C:\Users\anlr0006\repos-win\DOC_catchments\input\Torvkarta\Kontinuerlig_torvkarta_mosaik\Torvkarta.tif -gdb C:\Users\anlr0006\repos-win\DOC_catchments\results\arcpy_workspace\trendlakes.gdb
