@@ -175,5 +175,7 @@ Logs/
 
 .snakemake/
 
+data/
 # Ignore logs 
 
+arcpy_env/  

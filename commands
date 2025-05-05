@@ -20,4 +20,16 @@ PEAT
 
 conda activate C:\Users\anlr0006\repos-win\DOC_catchments\arcpy_env
 
-python scripts\peat_area.py -o C:\Users\anlr0006\repos-win\DOC_catchments\results\slu_sgu\peat_trendlakes.csv -c C:\Users\anlr0006\repos-win\DOC_catchments\data\aro_trendsjöar_106_250408.zip -r C:\Users\anlr0006\repos-win\DOC_catchments\input\Torvkarta\Kontinuerlig_torvkarta_mosaik\Torvkarta.tif -gdb C:\Users\anlr0006\repos-win\DOC_catchments\results\arcpy_workspace\trendlakes.gdb
+python scripts\peat_area.py -o C:\Users\anlr0006\repos-win\DOC_catchments\results\slu_sgu\peat_trendlakes.csv -c C:\Users\anlr0006\repos-win\DOC_catchments\data\aro_trendsjoar_106_250408.zip -r C:\Users\anlr0006\repos-win\DOC_catchments\input\Torvkarta\Kontinuerlig_torvkarta_mosaik\Torvkarta.tif -gdb C:\Users\anlr0006\repos-win\DOC_catchments\results\arcpy_workspace\trendlakes.gdb
+
+
+python scripts\peat_area.py -o C:\Users\anlr0006\repos-win\DOC_catchments\results\slu_sgu\peat_omdrevlakes.csv -c C:\Users\anlr0006\repos-win\DOC_catchments\data\aro_omdrevsjoar_5127_250227.zip -r C:\Users\anlr0006\repos-win\DOC_catchments\input\Torvkarta\Kontinuerlig_torvkarta_mosaik\Torvkarta.tif -gdb C:\Users\anlr0006\repos-win\DOC_catchments\results\arcpy_workspace\omdrevlakes.gdb
+
+
+DITCHES
+
+(& "C:\Users\anlr0006\AppData\Local\Programs\ArcGIS\Pro\bin\Python\Scripts\conda.exe" "shell.powershell" "hook") | Out-String | Invoke-Expression
+
+conda activate C:\Users\anlr0006\repos-win\DOC_catchments\arcpy_env
+
+python scripts\ditches.py -o C:\Users\anlr0006\repos-win\DOC_catchments\results\slu_sgu\ditches_omdrevlakes.csv -c C:\Users\anlr0006\repos-win\DOC_catchments\data\aro_omdrevsjoar_5127_250227.zip -r C:\Users\anlr0006\repos-win\DOC_catchments\input\Dikeskarta -gdb C:\Users\anlr0006\repos-win\DOC_catchments\results\arcpy_workspace\omdrevlakes.gdb
