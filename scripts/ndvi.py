@@ -35,7 +35,7 @@ zip_catch = "..\\shapefiles\\aro_omdrevsjöar_6194_250626\\aro_omdrevsjöar_6194
 
 
 # Load the shapefiles from the ZIP files
-gdf_catch = gpd.read_file(zip_catch)
+gdf_catch = gpd.read_file(zip_catch).rename(columns={"mvmid":"mvm_id"})
 gdf_catch = gdf_catch.loc[gdf_catch['mvm_id'].isin(mvm_false['mvm_id']) == False]
 
 gdf_catch.to_crs(epsg=4326, inplace=True)
@@ -45,7 +45,7 @@ gdf_catch.to_crs(epsg=4326, inplace=True)
 
 logging.info("Loaded %d catchment polygons from %s", len(gdf_catch), zip_catch)
 
-gdf_catch.rename(columns={"mvmid":"mvm_id"}, inplace = True)
+
 #%%
 import geopandas as gpd
 from datetime import datetime
@@ -122,7 +122,6 @@ def process_mvm_id(gdf_row, years, months, Landsat_NDVI, output_dir):
                 tileScale=2
             )
 
-            print(stats_median.getInfo())
             
             stats_min = ndvi_min.reduceRegions(
                 collection=shape,
