@@ -168,3 +168,8 @@ Input/
 Output/
 shapefile/
 maps/
+shapefiles/
+log*
+ndvi.py
+*.csv
+temp
