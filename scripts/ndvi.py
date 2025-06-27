@@ -5,7 +5,7 @@ import sys
 
 current_datetime = datetime.now().strftime("%Y_%m_%d")
 str_current_datetime = str(current_datetime)
-log_name =  "log_NDVI_"+str_current_datetime+".txt"
+log_name =  "..\\logs\\log_NDVI_"+str_current_datetime+".txt"
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     handlers=[
@@ -19,10 +19,9 @@ logging.basicConfig(level=logging.INFO,
 import ee
 import geemap
 # Authenticate
-ee.Authenticate(auth_mode='notebook')
-ee.Initialize(project='ee-anna-lackner')
+ee.Authenticate(auth_mode='localhost')
+geemap.ee_initialize(project='ndvi-omdrev')
 print(ee.String('Hello from the Earth Engine servers!').getInfo())
-
 
 #%% acess shapefiles to be used
 
@@ -30,21 +29,25 @@ import os
 import pandas as pd
 import geopandas as gpd
 
-zip_catch = "shapefiles\\aro_omdrevsjöar_5437_250624\\aro_omdrevsjöar_5437_250624.shp"
+zip_catch = "..\\shapefiles\\aro_omdrevsjöar_6194_250626\\aro_omdrevsjöar_6194_250626.shp"
 
 
 # Load the shapefiles from the ZIP files
-gdf_catch = gpd.read_file(zip_catch)
+gdf_catch = gpd.read_file(zip_catch).iloc[0:10]
 
 gdf_catch.to_crs(epsg=4326, inplace=True)
+
+
+
+logging.info("Loaded %d catchment polygons from %s", len(gdf_catch), zip_catch)
 
 gdf_catch.rename(columns={"mvmid":"mvm_id"}, inplace = True)
 #%%
 import geopandas as gpd
 from datetime import datetime
 
-# Initialize the Earth Engine API
-ee.Initialize()
+# # Initialize the Earth Engine API
+# ee.Initialize()
 
 # Function to calculate the last day of the month
 def get_last_day_of_month(year, month):
@@ -73,10 +76,22 @@ def geo_to_ee(gdf_row):
 # Function to compute NDVI statistics for a specific mvm_id
 def process_mvm_id(gdf_row, years, months, Landsat_NDVI, output_dir):
     mvm_id = gdf_row['mvm_id']
+    output_path = os.path.join(output_dir, f"NDVI_{mvm_id}.csv")
+
+    if os.path.exists(output_path):
+        logging.info("File %s already exists and is not empty. Skipping mvm_id: %s", output_path, mvm_id)
+        return
+    
     logging.info(f"Processing mvm_id: {mvm_id}")
+    # Create (or touch) the output_path file so it exists, will be overwritten later
+    with open(output_path, 'w') as f:
+        pass
+
+
     shape = geo_to_ee(gdf_row)
     
     rows = []
+
     for year in years:
         for month in months:
             start_date = f"{year}-{month}-01"
@@ -90,30 +105,56 @@ def process_mvm_id(gdf_row, years, months, Landsat_NDVI, output_dir):
             if image_count == 0:
                 continue
             
-            ndvi_mean = landsat_filtered.reduce(ee.Reducer.mean())
+            # Calculate statistics
+            ndvi_min = landsat_filtered.reduce(ee.Reducer.min())
+            ndvi_median = landsat_filtered.reduce(ee.Reducer.median())
+            ndvi_max = landsat_filtered.reduce(ee.Reducer.max())
+
             
-            stats_mean = ndvi_mean.reduceRegions(
+            stats_median = ndvi_median.reduceRegions(
+                collection=shape,
+                reducer=ee.Reducer.mean(),
+                scale=30,
+                tileScale=2
+            )
+
+            print(stats_median.getInfo())
+            
+            stats_min = ndvi_min.reduceRegions(
                 collection=shape,
                 reducer=ee.Reducer.mean(),
                 scale=30,
                 tileScale=2
             )
             
+            stats_max = ndvi_max.reduceRegions(
+                collection=shape,
+                reducer=ee.Reducer.mean(),
+                scale=30,
+                tileScale=2
+            )
+            
+
+
             try:
-                mean_info = stats_mean.getInfo()
+                min_info = stats_min.getInfo()
+                median_info = stats_median.getInfo()
+                max_info = stats_max.getInfo()
                 
-                for i in range(len(mean_info['features'])):
-                    rows.append({
-                        'mvm_id': mvm_id,
-                        'year': year,
-                        'month': month,
-                        'NDVI_mean': mean_info['features'][i]['properties'].get('mean', None),
-                    })
+                if 'features' in median_info and len(median_info['features']) > 0:
+                    for i in range(len(median_info['features'])):
+                        rows.append({
+                            'month': month,
+                            'year': year,
+                            'mvm_id': mvm_id,
+                            'NDVI_min': min_info['features'][i]['properties'].get('min', None),
+                            'NDVI_median': median_info['features'][i]['properties'].get('mean', None),
+                            'NDVI_max': max_info['features'][i]['properties'].get('mean', None),
+                        })
             except Exception as e:
                     logging.error("Error processing stats for mvm_id {%s} (%s-%s): %s", str(mvm_id), str(year), str(month), e)
     
     if rows:
-        output_path = os.path.join(output_dir, f"NDVI_{mvm_id}.csv")
         pd.DataFrame(rows).to_csv(output_path, index=False)
         logging.info(f"Saved results for mvm_id %s to %s", str(mvm_id), output_path)
     else:
@@ -121,11 +162,11 @@ def process_mvm_id(gdf_row, years, months, Landsat_NDVI, output_dir):
 
 # Main processing loop
 def main():
-    output_dir = "Output/NDVI_omdrev"
+    output_dir = "\\\\storage.slu.se\\Home$\\anlr0006\\My Documents\\04_Projects\\11_Lakes\\01_data\\02_raw_data\\NDVI"
     os.makedirs(output_dir, exist_ok=True)
     
-    months = [ "04", "05", "06", "07", "08", "09", "10", "11"]
-    years = list(range(2000, 2024))
+    months = [  "05", "06", "07", "08", "09", "10"]
+    years = list(range(2000, 2025))
     Landsat_NDVI = ee.ImageCollection('LANDSAT/COMPOSITES/C02/T1_L2_8DAY_NDVI')
     
     for idx, gdf_row in gdf_catch.iterrows():
@@ -136,6 +177,8 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
 
 #%% close logger
 # Get the root logger (or any named logger if used)
