@@ -1,5 +1,17 @@
+# Parse arguments
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("-f", type=str, help="folder for the the raster")
+parser.add_argument("-c", type=str, help="the catchments")
+parser.add_argument("-o", type=str, help="the output")
+parser.add_argument("-sy", type=int, help="start year")
+parser.add_argument("-ey", type=int, help="end year")
 
-# %%
+args = parser.parse_args()
+date_range = slice(f"{args.sy}-01-01", f"{args.ey}-12-31")
+zip_catch = args.c
+output_file = args.o
+
 # packages needed to run discharge application 
 from shapely.geometry import Polygon
 import os
@@ -10,8 +22,6 @@ from shapely.geometry import mapping
 import pandas as pd
 import numpy as np
 
-
-# %%
 # functions for climate agggregation
 
 def extract_var (mvm_id,  cats, id_var, df, var, date_range): 
@@ -101,7 +111,7 @@ def extract_var (mvm_id,  cats, id_var, df, var, date_range):
 
     return time_series
 
-def daily_climate( catchments,temperature_path = "SMHI_pthbv_pr_1980_2024_daily.nc" , precipitation_path = "SMHI_pthbv_tas_1980_2024_daily.nc", id_variable = 'ID', date_range = slice("2010-01-01", "2014-12-31")):
+def daily_climate( catchments,temperature_path = "SMHI_pthbv_pr_1980_2024_daily.nc" , precipitation_path = "SMHI_pthbv_tas_1980_2024_daily.nc", id_variable = 'mvm_id', date_range = slice("2010-01-01", "2014-12-31")):
 
     """ Requirnments are for the file paths to exist, for the catchment shapefile to be in crs EPSG:3006 """
 
@@ -134,7 +144,7 @@ def daily_climate( catchments,temperature_path = "SMHI_pthbv_pr_1980_2024_daily.
             precip['time'] = precip['time'].dt.date
             current = precip.merge(temp, on = 'time', )
             current['mvm_id'] = id
-            climate_data = pd.concat([climate_data,current], axis = 0)
+            climate_data = pd.concat([climate_data if not climate_data.empty else None,current], axis = 0)
         except Exception as e:
             print(f"Error processing ID {id}: {e}")
             failed.append(id)
@@ -143,14 +153,13 @@ def daily_climate( catchments,temperature_path = "SMHI_pthbv_pr_1980_2024_daily.
 
     return(climate_data)
 
-# %%
 
 # first load in your cacthment shapefile make sure its in SWEREF TM99 if you load just the shapefile you have to manually set the projection
 # cats = gpd.read_file(r"shapefile.shp").replace(-9999,pd.NA) # Fixed cacthments
 # cats.crs = 'EPSG:3006'
 
 # or if you have it as a zip file you can load it with the projection
-zip_catch = r"catch.zip"
+
 cats = gpd.read_file(f"zip://{zip_catch}").replace(-9999,pd.NA)
 
 
@@ -159,15 +168,11 @@ id_var = 'mvm_id'
 
 # change directory to the folder containing your input files and give the names of your input files. 
 
-os.chdir(r"Input")
 
-precipitation_path = "SMHI_pthbv_pr_1980_2024_daily.nc"
-temperature_path = "SMHI_pthbv_tas_1980_2024_daily.nc"
+precipitation_path = os.path.join(args.f, "SMHI_pthbv_pr_1980_2024_daily.nc")
+temperature_path = os.path.join(args.f,"SMHI_pthbv_tas_1980_2024_daily.nc")
 
 # Run the function daily climate to generate a df that has an id column a time column and then both precipitation and temperature aggregated for each cacthment. 
-daily = daily_climate( catchments = cats,temperature_path = "SMHI_pthbv_tas_1980_2024_daily.nc" , precipitation_path = "SMHI_pthbv_pr_1980_2024_daily.nc", id_variable = "mvm_id", date_range = slice("1984-01-01", "2024-12-31"))
+daily = daily_climate(catchments = cats,temperature_path = temperature_path , precipitation_path = precipitation_path, id_variable = "mvm_id", date_range = date_range)
 
-os.chdir(r"../Output")
-
-daily.to_csv("daily_climate_316.csv", index = False)
-# %%
+daily.to_csv(args.o, index = False)

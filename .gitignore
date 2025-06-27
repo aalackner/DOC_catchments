@@ -162,14 +162,10 @@ cython_debug/
 #.idea/
 
 
-### Filesystem within
+### Ignore Results, and Input within repository
 
+input/
 Input/
 Output/
 shapefile/
 maps/
-shapefiles/
-log*
-ndvi.py
-*.csv
-temp

@@ -1,0 +1,77 @@
+
+rule all:
+    input:
+        "results/discharge/daily_discharge.csv",
+        "input/ids/mvm_ids.txt",
+        "results/climate/daily_climate.csv",
+        "results/PLC8/soil_type.csv"
+
+
+rule get_ids:
+    input:
+        file = "input/shapefile/catchments.zip",
+        script = "scripts/get_id.py"
+    output:
+        "input/ids/mvm_ids.txt"
+    log: 
+        "logs/id_log.txt"
+    container: "oras://community.wave.seqera.io/library/geopandas_netcdf4_numpy_pandas_pruned:3ea6865107ad1b1a"
+    shell:
+        """
+        python scripts/get_id.py -o {output} -c {input.file}  >{log}
+        """
+
+rule aggregate_daily_climate:
+    output:
+        "results/climate/daily_climate.csv",
+    input:
+        "input/shapefile/catchments.zip"
+    log:
+        "logs/climate/daily_climate_log.txt"
+    params:
+        start_year = "1998",
+        end_year = "2024",
+        folder = "input/SMHI"
+    container: 
+        "oras://community.wave.seqera.io/library/geopandas_netcdf4_numpy_pandas_pruned:3ea6865107ad1b1a"
+    shell:
+        """
+        python scripts/climate_aggregation.py -o {output} -c {input} -f {params.folder} -sy {params.start_year} -ey {params.end_year} >{log}
+        """
+
+rule get_PLC8_soil_type: 
+    output:
+        "results/PLC8/soil_type.csv"
+    input:
+        file = "input/shapefile/catchments.zip", 
+        script = "scripts/PLC8.py"
+    log:
+        "logs/PLC8/soil_type_log.txt"
+    params:
+        tif = "/mnt/gisdata_ivm/8_shared_files/Anna Lackner/PLC8_jordarter_reclassified.tif"
+    conda: 
+        "py-gis-env"
+    shell:
+        """
+        # python scripts/PLC8.py -o {output} -c {input.file}  >{log}
+        """
+
+rule get_SVARO:
+    output:
+        "results/SVARO/ARO_UUID.txt"
+    input:
+        "results/SVARO/aro.gpkg"
+    conda:
+        "py-gis-env"
+    script:
+        "../scripts/get_SVARO_id.py"
+
+rule daily_discharge:
+    output:
+        "results/discharge/daily_discharge.csv"
+    input:
+        "input/SMHI/SVARO_discharge.csv"
+    conda:
+        "py-gis-env"
+    script:
+        "../scripts/get_SVARO_id.py"
