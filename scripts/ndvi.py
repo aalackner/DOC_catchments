@@ -29,13 +29,17 @@ import os
 import pandas as pd
 import geopandas as gpd
 
+mvm_false = pd.read_csv("\\\\storage.slu.se\\Home$\\anlr0006\\My Documents\\04_Projects\\11_Lakes\\02_notes\\false_catchments.csv")
+
 zip_catch = "..\\shapefiles\\aro_omdrevsjöar_6194_250626\\aro_omdrevsjöar_6194_250626.shp"
 
 
 # Load the shapefiles from the ZIP files
-gdf_catch = gpd.read_file(zip_catch).iloc[0:10]
+gdf_catch = gpd.read_file(zip_catch)
+gdf_catch = gdf_catch.loc[gdf_catch['mvm_id'].isin(mvm_false['mvm_id']) == False]
 
 gdf_catch.to_crs(epsg=4326, inplace=True)
+
 
 
 
