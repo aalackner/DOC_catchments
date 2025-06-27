@@ -166,6 +166,23 @@ cython_debug/
 
 input/
 Input/
+results/
+Results/
+logs/
+Logs/
+
+# Ignore snakemake 
+
+.snakemake/
+
+# Ignore logs 
+
+
 Output/
 shapefile/
 maps/
+shapefiles/
+log*
+ndvi.py
+*.csv
+temp
