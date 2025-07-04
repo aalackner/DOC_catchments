@@ -1,29 +1,44 @@
 ##########
 
-Commands to put into the consule if you don't want to use snakemake
+Commands to put into the consule if you don't want to use snakemake make sure your replace all files and folders to match your sources. There are two python environments that are used here. 
+
+1. A venv for which a requirnments file is also found in this repository. If not stated otherwise this venv is used for the script, so make sure you activate it before running the command.
+
+2. A conda env with ArcGIS inside. If you have ARCGIS downloaded you can clone the arcgis conda env to your desired loacation and activate it before running the script. I have an extra command to get conda from inside ARC GIS installation since I don't have it in my PATH. 
+   Used in: 
+    - peat_area.py
+    - ditches.py
 
 ##########
 
 ###### WINDOWS #######
 
 
+SULFUR and NITROGEN DEPOITION
+
+
+python scripts\emep.py -o results\emep\emep_trial.csv -c data\catch_316.zip -f input\EMEP\data_trial -sy 1990 -ey 2022 -d True 
+
+
+
 CLIMATE
 
-python scripts\climate_aggregation.py -o results\climate\climate_trendlakes.csv -c data\aro_trendsjöar_106_250408.zip -f input\SMHI -sy 1990 -ey 2024 -res month
+python scripts\climate_aggregation.py -o results\climate\climate_trendlakes.csv -c data\aro_trendsjöar_106_250408.zip -f input\SMHI -sy 1990 -ey 2024 -res daily
 
-python scripts\climate_aggregation.py -o results\climate\climate_omdrevlakes.csv -c data\aro_omdrevsjöar_5127_250227.zip -f input\SMHI -sy 1990 -ey 2024 -res month
+python scripts\climate_aggregation.py -o results\climate\climate_omdrevlakes.csv -c data\aro_omdrevsjöar_5127_250227.zip -f input\SMHI -sy 1990 -ey 2024 -res daily
 
-
-PEAT
-
-(& "C:\Users\anlr0006\AppData\Local\Programs\ArcGIS\Pro\bin\Python\Scripts\conda.exe" "shell.powershell" "hook") | Out-String | Invoke-Expression
-
-conda activate C:\Users\anlr0006\repos-win\DOC_catchments\arcpy_env
-
-python scripts\peat_area.py -o C:\Users\anlr0006\repos-win\DOC_catchments\results\slu_sgu\peat_trendlakes.csv -c C:\Users\anlr0006\repos-win\DOC_catchments\data\aro_trendsjoar_106_250408.zip -r C:\Users\anlr0006\repos-win\DOC_catchments\input\Torvkarta\Kontinuerlig_torvkarta_mosaik\Torvkarta.tif -gdb C:\Users\anlr0006\repos-win\DOC_catchments\results\arcpy_workspace\trendlakes.gdb
+python scripts\climate_aggregation.py -o results\climate\climate_catch_316.csv -c data\catch_316.zip -f input\SMHI -sy 1990 -ey 2024 -res daily
 
 
-python scripts\peat_area.py -o C:\Users\anlr0006\repos-win\DOC_catchments\results\slu_sgu\peat_omdrevlakes.csv -c C:\Users\anlr0006\repos-win\DOC_catchments\data\aro_omdrevsjoar_5127_250227.zip -r C:\Users\anlr0006\repos-win\DOC_catchments\input\Torvkarta\Kontinuerlig_torvkarta_mosaik\Torvkarta.tif -gdb C:\Users\anlr0006\repos-win\DOC_catchments\results\arcpy_workspace\omdrevlakes.gdb
+
+CLASSIFIED PEAT MAP
+
+python scripts\peat_area.py -o C:\Users\anlr0006\repos-win\DOC_catchments\results\slu_sgu\peat_classified_omdrevlakes.csv -c C:\Users\anlr0006\repos-win\DOC_catchments\data\aro_omdrevsjoar_5127_250227.zip -r C:\Users\anlr0006\repos-win\DOC_catchments\input\Torvkarta\Klassad_torvkarta\ClassifiedPeatMap.tif -gdb C:\Users\anlr0006\repos-win\DOC_catchments\results\arcpy_workspace\omdrevlakes.gdb
+
+python scripts\peat_area.py -o C:\Users\anlr0006\repos-win\DOC_catchments\results\slu_sgu\peat_classified_trendlakes.csv -c C:\Users\anlr0006\repos-win\DOC_catchments\data\aro_trendsjoar_106_250408.zip -r C:\Users\anlr0006\repos-win\DOC_catchments\input\Torvkarta\Klassad_torvkarta\ClassifiedPeatMap.tif -gdb C:\Users\anlr0006\repos-win\DOC_catchments\results\arcpy_workspace\trendlakes.gdb
+
+python scripts\peat_area.py -o \results\slu_sgu\peat_classified_catch_316.csv -c data\catch_316.zip -r input\Torvkarta\Klassad_torvkarta\ClassifiedPeatMap.tif -gdb results\arcpy_workspace\catch_316.gdb -id mvmid
+
 
 
 DITCHES
@@ -32,4 +47,7 @@ DITCHES
 
 conda activate C:\Users\anlr0006\repos-win\DOC_catchments\arcpy_env
 
-python scripts\ditches.py -o C:\Users\anlr0006\repos-win\DOC_catchments\results\slu_sgu\ditches_omdrevlakes.csv -c C:\Users\anlr0006\repos-win\DOC_catchments\data\aro_omdrevsjoar_5127_250227.zip -r C:\Users\anlr0006\repos-win\DOC_catchments\input\Dikeskarta -gdb C:\Users\anlr0006\repos-win\DOC_catchments\results\arcpy_workspace\omdrevlakes.gdb
+python scripts\ditches.py -o C:\Users\anlr0006\repos-win\DOC_catchments\results\slu_sgu\ditches_matchad.csv -c "\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\10_RWSCC\data\catchments\MatchadSVAROV2.zip" -r C:\Users\anlr0006\repos-win\DOC_catchments\input\Dikeskarta -gdb C:\Users\anlr0006\repos-win\DOC_catchments\results\arcpy_workspace\matchad.gdb -id AU_CD
+
+
+
