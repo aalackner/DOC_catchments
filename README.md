@@ -10,7 +10,9 @@ you can either run the workflow or parts of the workflow using snakemake and con
 ## individual scripts in your own environment
 You can also run individual scripts and make sure you are running it in a conda or python environment that has the requirnments installed. these will differ from script to script. 
 
-If you want to run individual scripts check the script to make sure you use the right arguments rom the terminal or change the input files in the script.
+Commands to run these in the terminal can be found in the file **commands**.
+
+If you want to run individual scripts check the script to make sure you use the right arguments rom the terminal or change the input files in the script. 
 
 # Scripts
 
@@ -46,3 +48,9 @@ name:    get_water_chem.r
 ## NDVI 
 
 Uses Google Earth Engine to download NDVI from Landsat data, as monthly timeseries for each catchment.
+
+## SVARO 2022 accumulated catchemnts
+
+name: get_SVARO_2022.py
+
+uses the SVARO_2022 catchemnts to go from a set of polygons (in my case the VSOs) to watercourses that overlap these polygons, to then the accumulated catchment of these surface waters. 

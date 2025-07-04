@@ -18,8 +18,6 @@ gdf_stations = gpd.GeoDataFrame(
                               
 
 gdf_stations.plot()
-
-
 # %%
 import geopandas as gpd
 from shapely.geometry import Point

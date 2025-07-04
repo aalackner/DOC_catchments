@@ -1,21 +1,26 @@
 # set up
 library(tidyverse)
-source("src/sourcecode.R")
+source("../src/sourcecode.R")
+
 # Acess the API
 library(jsonlite)
-library(argparse)
+library(sf)
 
 ## first we load the list of mvm_ids
 
-mvm_ids <- read_file (ids) %>%
-  str_split(",") %>%
-  unlist() %>%
-  as.numeric() %>%
-  na.omit()
+mvm_ids <- st_read( "\\\\storage.slu.se\\Home$\\anlr0006\\My Documents\\04_Projects\\02_Top-Down\\01_data\\04_gis_data\\01_watersheds\\catch_316.shp")$mvm_id
+
+# mvm_ids <- read_file (ids) %>%
+#   str_split(",") %>%
+#   unlist() %>%
+#   as.numeric() %>%
+#   na.omit()
 
 ## load set up variables and library for accessing the API
 
 my.token <- "PUJD93023KAS943HD"
+
+
 
 folder <- "\\\\storage.slu.se\\Home$\\anlr0006\\My Documents\\04_Projects\\02_Top-Down\\01_data\\02_raw_data\\01_mvm_miljödata\\"
 
@@ -34,7 +39,7 @@ overview <- data.frame(
 
 ## Now we loop through all the mvm_ids accessing the json file, saving the raw json in case I need to ever access the metadata. And then moving on to saving it as a csv per station.
 
-for (id in mvm_ids[50:282]){
+for (id in mvm_ids){
   
   full.samples <- get_samples(folder, id)
   
@@ -44,8 +49,8 @@ for (id in mvm_ids[50:282]){
   ## run the JSON through the functions combine_col and into_table to generate a single csv file for each station.
   process_samples(full.samples, csv.path, id)
   
-  # Pause for 2 minutes in order to let the server also do other jobs
-  Sys.sleep(60) 
+  # Pause for 1 second in order to let the server also do other jobs
+  Sys.sleep(1) 
 }
 
 print(fail_table)
@@ -65,5 +70,5 @@ csv_files <- files_in_folder %>%
 
 # Step 3: Read and bind all .csv files into a single tibble
 csv_files %>%
-  map_dfr(read_csv) %>% write.csv(.,file = paste0(folder, 'water_chem_2024_10_08.csv' ))
+  map_dfr(read_csv) %>% write.csv(.,file = paste0(folder, 'water_chem_v316_2025.csv' ))
 
