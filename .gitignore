@@ -178,4 +178,13 @@ Logs/
 data/
 # Ignore logs 
 
+
+Output/
+shapefile/
+maps/
+shapefiles/
+log*
+ndvi.py
+*.csv
+temp
 arcpy_env/  
