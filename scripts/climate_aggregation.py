@@ -178,7 +178,11 @@ def daily_climate( catchments,temperature_path = "SMHI_pthbv_pr_1980_2024_daily.
 
 # or if you have it as a zip file you can load it with the projection
 
-cats = gpd.read_file(f"zip://{zip_catch}").replace(-9999,pd.NA)
+if zip_catch.endswith('.zip'):
+    cats = gpd.read_file(f"zip://{zip_catch}").replace(-9999,pd.NA)
+else:
+    cats = gpd.read_file(zip_catch).replace(-9999,pd.NA)
+
 
 if "mvm_id" not in cats.columns:
     # check for mvmid
