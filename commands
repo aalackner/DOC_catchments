@@ -51,3 +51,10 @@ python scripts\ditches.py -o C:\Users\anlr0006\repos-win\DOC_catchments\results\
 
 
 
+####################### LINUX #######################
+
+CLIMATE
+
+python scripts/climate_aggregation.py -o results/climate/climate_trendlakes130.csv -c "~/mnt/anna/My Documents/04_Projects/11_Lakes/01_data/02_raw_data/catchments/aro_trendsjöar_130_250703/aro_trendsjöar_130_250703.shp" -f "/home/anlr0006/mnt/anna/My Documents/04_Projects/09_General/03_data/DOC_catchments/input/SMHI" -sy 1990 -ey 2024 -res daily 
+
+python scripts/climate_aggregation.py -o results/climate/climate_omdrev194.csv -c "~/mnt/anna/My Documents/04_Projects/11_Lakes/01_data/02_raw_data/catchments/aro_omdrevsjöar_6194_250701/aro_omdrevsjöar_6194_250701.shp" -f "/home/anlr0006/mnt/anna/My Documents/04_Projects/09_General/03_data/DOC_catchments/input/SMHI" -sy 1990 -ey 2024 -res daily 
