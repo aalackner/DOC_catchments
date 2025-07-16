@@ -8,6 +8,7 @@ Commands to put into the consule if you don't want to use snakemake make sure yo
    Used in: 
     - peat_area.py
     - ditches.py
+    - peat.py
 
 ##########
 
@@ -33,6 +34,10 @@ python scripts\climate_aggregation.py -o results\climate\climate_catch_316.csv -
 
 CLASSIFIED PEAT MAP
 
+(& "C:\Users\anlr0006\AppData\Local\Programs\ArcGIS\Pro\bin\Python\Scripts\conda.exe" "shell.powershell" "hook") | Out-String | Invoke-Expression
+
+conda activate C:\Users\anlr0006\repos-win\DOC_catchments\arcpy_env
+
 python scripts\peat_area.py -o C:\Users\anlr0006\repos-win\DOC_catchments\results\slu_sgu\peat_classified_omdrevlakes.csv -c C:\Users\anlr0006\repos-win\DOC_catchments\data\aro_omdrevsjoar_5127_250227.zip -r C:\Users\anlr0006\repos-win\DOC_catchments\input\Torvkarta\Klassad_torvkarta\ClassifiedPeatMap.tif -gdb C:\Users\anlr0006\repos-win\DOC_catchments\results\arcpy_workspace\omdrevlakes.gdb
 
 python scripts\peat_area.py -o C:\Users\anlr0006\repos-win\DOC_catchments\results\slu_sgu\peat_classified_trendlakes.csv -c C:\Users\anlr0006\repos-win\DOC_catchments\data\aro_trendsjoar_106_250408.zip -r C:\Users\anlr0006\repos-win\DOC_catchments\input\Torvkarta\Klassad_torvkarta\ClassifiedPeatMap.tif -gdb C:\Users\anlr0006\repos-win\DOC_catchments\results\arcpy_workspace\trendlakes.gdb
@@ -49,5 +54,5 @@ conda activate C:\Users\anlr0006\repos-win\DOC_catchments\arcpy_env
 
 python scripts\ditches.py -o C:\Users\anlr0006\repos-win\DOC_catchments\results\slu_sgu\ditches_matchad.csv -c "\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\10_RWSCC\data\catchments\MatchadSVAROV2.zip" -r C:\Users\anlr0006\repos-win\DOC_catchments\input\Dikeskarta -gdb C:\Users\anlr0006\repos-win\DOC_catchments\results\arcpy_workspace\matchad.gdb -id AU_CD
 
-
+python scripts\ditches.py -o C:\Users\anlr0006\repos-win\DOC_catchments\results\slu_sgu\ditches_combined_catchments.csv -c "\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\01_data\02_raw_data\catchments\merged_catchments.zip" -r C:\Users\anlr0006\repos-win\DOC_catchments\input\Dikeskarta -gdb C:\Users\anlr0006\repos-win\DOC_catchments\results\arcpy_workspace\combined_catchments.gdb -id mvm_id
 

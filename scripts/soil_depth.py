@@ -1,9 +1,9 @@
 # Script for calculating soil depth
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("r", type=str, help="the raster")
-parser.add_argument("c", type=str, help="the catchments")
-parser.add_argument("o", type=str, help="the output")
+parser.add_argument("-r", type=str,default = "default", help="the raster")
+parser.add_argument("-c", type=str, help="the catchments")
+parser.add_argument("-o", type=str, help="the output")
 
 """
 Requires acess to the sgu soildepth raster.  
@@ -32,22 +32,21 @@ else:
 
 
 # Load the catchments that I am running it for
-zip_catch = "catchments.zip"
+zip_catch = args.c
 
-shapes_folder = "../Input/shapefile"
+
 
 # Load the shapefiles from the ZIP files
-gdf_catch = gpd.read_file(f"zip://{shapes_folder}//{zip_catch}")
+gdf_catch = gpd.read_file(f"zip://{zip_catch}")
 
 
 
-output_folder = "Results/Maps"  # Folder to save maps
+output_folder = args.o  # Folder to save maps
 
-# Ensure the output folder exists
-os.makedirs(output_folder, exist_ok=True)
+
 
 # Step 1: Read the shapefile (example)
-gdf = gdf_catch.iloc[1:3]  # Adjust for the number of catchments you want to process
+gdf = gdf_catch # Adjust for the number of catchments you want to process
 
 # Step 2: Prepare to collect results and failures
 statistics_results = []
@@ -82,23 +81,23 @@ for idx, zone in gdf.iterrows():
             # Read the raster data for the window
             raster_data = src.read(1, window=window)
 
-            # Plot the raster window and shapefile overlay
-            fig, ax = plt.subplots(figsize=(10, 10))
+            # # Plot the raster window and shapefile overlay
+            # fig, ax = plt.subplots(figsize=(10, 10))
             
-            # Plot the raster with adjusted opacity (alpha controls transparency)
-            ax.imshow(raster_data, cmap='gray', extent=(bounds[0], bounds[2], bounds[3], bounds[1]), alpha=0.6)
-            ax.set_title(f"Catchment ID: {zone['mvm_id']}")  # Adjust ID field as necessary
+            # # Plot the raster with adjusted opacity (alpha controls transparency)
+            # ax.imshow(raster_data, cmap='gray', extent=(bounds[0], bounds[2], bounds[3], bounds[1]), alpha=0.6)
+            # ax.set_title(f"Catchment ID: {zone['mvm_id']}")  # Adjust ID field as necessary
 
-            # Overlay the current shape on the plot
-            gpd.GeoSeries(zone_geom).plot(ax=ax, facecolor='none', edgecolor='red', linewidth=2)
+            # # Overlay the current shape on the plot
+            # gpd.GeoSeries(zone_geom).plot(ax=ax, facecolor='none', edgecolor='red', linewidth=2)
             
-            # Add a basemap using OpenStreetMap or Stamen Terrain
-            ctx.add_basemap(ax, crs=gdf.crs.to_string(), source=ctx.providers.OpenStreetMap.Mapnik)  # OSM default basemap
+            # # Add a basemap using OpenStreetMap or Stamen Terrain
+            # ctx.add_basemap(ax, crs=gdf.crs.to_string(), source=ctx.providers.OpenStreetMap.Mapnik)  # OSM default basemap
             
-            # Save the map as an image file
-            map_filename = os.path.join(output_folder, f"{zone['mvm_id']}_map.png")
-            plt.savefig(map_filename, dpi=300)
-            plt.close()
+            # # Save the map as an image file
+            # map_filename = os.path.join(output_folder, f"{zone['mvm_id']}_map.png")
+            # plt.savefig(map_filename, dpi=300)
+            # plt.close()
 
             # Mask the raster data using the current geometry
             out_image, out_transform = mask(src, [zone_geom], crop=True)
@@ -127,11 +126,11 @@ for idx, zone in gdf.iterrows():
 
 # Step 3: Save statistics to CSV
 statistics_df = pd.DataFrame(statistics_results)
-statistics_df.to_csv(os.path.join(output_folder, "soil_depth.csv"), index=False)
+statistics_df.to_csv(output_folder, index=False)
 
 # Step 4: Log failed IDs to a text file
-with open(os.path.join(output_folder, "failed.txt"), 'w') as f:
+with open(os.path.join(os.path.split(output_folder)[0], "failed.txt"), 'w') as f:
     for failed_id in failed_ids:
         f.write(f"{failed_id}\n")
 
-print(f"Processing complete. Maps saved to {output_folder}, statistics saved to soil_depth.csv, and failed IDs saved to failed.txt.")
+print(f"Processing complete. Statistics saved to {output_folder}, and failed IDs saved to failed.txt.")
