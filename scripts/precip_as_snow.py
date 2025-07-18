@@ -1,32 +1,59 @@
-# Parse arguments
-import argparse
-parser = argparse.ArgumentParser()
-parser.add_argument("-f", type=str, help="folder for the the raster")
-parser.add_argument("-c", type=str, help="the catchments")
-parser.add_argument("-o", type=str, help="the output")
-parser.add_argument("-sy", type=int, help="start year")
-parser.add_argument("-ey", type=int, help="end year")
-parser.add_argument("-res", type=str, help="daily (default) or month(ly) resolution")
-
-
-args = parser.parse_args()
-date_range = slice(f"{args.sy}-01-01", f"{args.ey}-12-31")
-zip_catch = args.c
-output_file = args.o
-
-resolution = args.res
-
-# packages needed to run discharge application 
-from shapely.geometry import Polygon
-import os
-import geopandas as gpd
-import rioxarray # initiated rioxarray GIS refernced xarrays (Is needed!)
-import xarray as xr
-from shapely.geometry import mapping
+#%%
 import pandas as pd
-import numpy as np
+import geopandas as gpd
 
-# functions for climate agggregation
+#%%
+
+file_climate_1 = '/home/anlr0006/code/DOC_catchments/results/climate/climate_trendlakes130.csv'
+file_climate_2 = '/home/anlr0006/code/DOC_catchments/results/climate/climate_omdrev6194.csv'
+file_cats = "/home/anlr0006/mnt/anna/My Documents/04_Projects/11_Lakes/01_data/02_raw_data/catchments/merged_catchments/merged_catchments.shp"
+file_thresholds = "/home/anlr0006/mnt/anna/My Documents/04_Projects/09_General/01_GIS/Jennings_2019/jennings_et_al_2018_file4_temp50_raster.tif"
+folder_SMHI = "/home/anlr0006/mnt/anna/My Documents/04_Projects/09_General/03_data/DOC_catchments/input/SMHI/"
+#%%
+
+# select which variable is your id column in the, in my case its called mvm_id. This is to loop through all the ids of your shapefile.
+id_var = 'mvm_id'
+
+# change directory to the folder containing your input files and give the names of your input files. 
+
+
+precipitation_path = os.path.join(folder_SMHI, "SMHI_pthbv_pr_1980_2024_daily.nc")
+temperature_path = os.path.join(folder_SMHI,"SMHI_pthbv_tas_1980_2024_daily.nc")
+# %%
+
+cats = gpd.read_file(file_cats).iloc[0:4]
+
+# Check if the precip path and tem path are valid raster files
+if not os.path.isfile(precipitation_path):
+    raise FileNotFoundError(f"The precipitation file path {precipitation_path} does not exist.")
+if not os.path.isfile(temperature_path):
+    raise FileNotFoundError(f"The temperature file path {temperature_path} does not exist.")
+
+# Check whether file_threshold is a valid raster file
+if not os.path.isfile(file_thresholds):
+    raise FileNotFoundError(f"The thresholds file path {file_thresholds} does not exist.")
+
+# Path exists
+#%%
+
+#%% find threshold values
+import xarray as xr
+ds = xr.open_dataset(precipitation_path, decode_coords="all")
+temperature = xr.open_dataset(temperature_path, decode_coords="all")
+threshold = xr.open_dataset(file_thresholds, decode_coords="all")
+threshold.rio.write_crs("EPSG:4326", inplace=True)
+ds.rio.write_crs("EPSG:3021", inplace=True)
+temperature.rio.write_crs("EPSG:3021", inplace=True)
+thresholds_proj = threshold.rio.reproject_match(ds)
+ds["threshold"] = thresholds_proj["band_data"]
+merged = xr.merge([ds, temperature])
+
+#%%
+
+def extract_var(merged, )
+
+
+#%%
 
 def extract_var (mvm_id,  cats, id_var, df, var, date_range): 
     cat = cats.loc[cats[id_var] == mvm_id]
@@ -140,6 +167,8 @@ def daily_climate( catchments,temperature_path = "SMHI_pthbv_pr_1980_2024_daily.
     precipitation = xr.open_dataset(precipitation_path, decode_coords="all")
     temperature = xr.open_dataset(temperature_path, decode_coords="all")
 
+    
+
     for id in mvm_id:
         print("ID in list:", mvm_id.index(id)+1, "of", len(mvm_id))
 
@@ -171,45 +200,5 @@ def daily_climate( catchments,temperature_path = "SMHI_pthbv_pr_1980_2024_daily.
 
     return(climate_data)
 
-
-# first load in your cacthment shapefile make sure its in SWEREF TM99 if you load just the shapefile you have to manually set the projection
-# cats = gpd.read_file(r"shapefile.shp").replace(-9999,pd.NA) # Fixed cacthments
-# cats.crs = 'EPSG:3006'
-
-# or if you have it as a zip file you can load it with the projection
-
-if zip_catch.endswith('.zip'):
-    cats = gpd.read_file(f"zip://{zip_catch}").replace(-9999,pd.NA)
-else:
-    cats = gpd.read_file(zip_catch).replace(-9999,pd.NA)
-
-
-if "mvm_id" not in cats.columns:
-    # check for mvmid
-    if 'mvmid' in cats.columns:
-        cats['mvm_id'] = cats['mvmid'] 
-
-# Check if mvm_id is in the columns of the shapefile
-if 'mvm_id' not in cats.columns:
-    # If not, check which columns the user could use instead
-    available_columns = cats.columns.tolist()
-    print(f"Available columns in the GeoDataFrame: {available_columns}")
-    raise KeyError(f"Column 'mvm_id' not found in GeoDataFrame. Please choose an existing column instead.") 
-
-
-
-# select which variable is your id column in the, in my case its called mvm_id. This is to loop through all the ids of your shapefile.
-id_var = 'mvm_id'
-
-# change directory to the folder containing your input files and give the names of your input files. 
-
-
-precipitation_path = os.path.join(args.f, "SMHI_pthbv_pr_1980_2024_daily.nc")
-temperature_path = os.path.join(args.f,"SMHI_pthbv_tas_1980_2024_daily.nc")
-
 # Run the function daily climate to generate a df that has an id column a time column and then both precipitation and temperature aggregated for each cacthment. 
 daily = daily_climate(catchments = cats,temperature_path = temperature_path , precipitation_path = precipitation_path, id_variable = "mvm_id", date_range = date_range)
-
-
-
-daily.to_csv(args.o, index = False)
