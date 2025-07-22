@@ -46,7 +46,7 @@ output_folder = args.o  # Folder to save maps
 
 
 # Step 1: Read the shapefile (example)
-gdf = gdf_catch # Adjust for the number of catchments you want to process
+gdf = gdf_catch.iloc[100:103] # Adjust for the number of catchments you want to process
 
 # Step 2: Prepare to collect results and failures
 statistics_results = []
@@ -129,7 +129,7 @@ statistics_df = pd.DataFrame(statistics_results)
 statistics_df.to_csv(output_folder, index=False)
 
 # Step 4: Log failed IDs to a text file
-with open(os.path.join(os.path.split(output_folder)[0], "failed.txt"), 'w') as f:
+with open(os.path.join(os.path.split(output_folder)[0], "failed_soil_depth.txt"), 'w') as f:
     for failed_id in failed_ids:
         f.write(f"{failed_id}\n")
 
