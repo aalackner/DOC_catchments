@@ -15,44 +15,77 @@ args = parser.parse_args()
 catch_file = args.c
 folder_SMHI = args.f
 # resolution = args.res
-file_thresholds = args.t
-
+file_threshold = args.t
+output_dir = args.o
 #%%
 import pandas as pd
 import geopandas as gpd
 import os
 #%%
+
+# output_dir = "/home/anlr0006/mnt/anna/My Documents/04_Projects/11_Lakes/01_data/03_processed_data/inter_climate" 
+# catch_file = "/home/anlr0006/mnt/anna/My Documents/04_Projects/11_Lakes/01_data/02_raw_data/catchments/merged_catchments/merged_catchments.shp" 
+# folder_SMHI= "/home/anlr0006/mnt/anna/My Documents/04_Projects/09_General/03_data/DOC_catchments/input/SMHI" 
+# file_threshold =  "/home/anlr0006/mnt/anna/My Documents/04_Projects/09_General/01_GIS/Jennings_2019/jennings_et_al_2018_file4_temp50_raster.tif"
 # catch_file = "/home/anlr0006/mnt/anna/My Documents/04_Projects/11_Lakes/01_data/02_raw_data/catchments/merged_catchments/merged_catchments.shp"
 # file_thresholds = "/home/anlr0006/mnt/anna/My Documents/04_Projects/09_General/01_GIS/Jennings_2019/jennings_et_al_2018_file4_temp50_raster.tif"
 # folder_SMHI = "/home/anlr0006/mnt/anna/My Documents/04_Projects/09_General/03_data/DOC_catchments/input/SMHI/"
-output_dir = "~/mnt/anna/My Documents/04_Projects/11_Lakes/01_data/03_processed_data/inter_climate/by_station"
+# output_dir = "~/mnt/anna/My Documents/04_Projects/11_Lakes/01_data/03_processed_data/inter_climate/by_station"
 #%%
 
 # select which variable is your id column in the, in my case its called mvm_id. This is to loop through all the ids of your shapefile.
 id_var = 'mvm_id' 
 
 # change directory to the folder containing your input files and give the names of your input files. 
-output_dir = args.o
 
+
+import os
+import shutil
 
 precipitation_path = os.path.join(folder_SMHI, "SMHI_pthbv_pr_1980_2024_daily.nc")
 temperature_path = os.path.join(folder_SMHI,"SMHI_pthbv_tas_1980_2024_daily.nc")
 # %%
 if catch_file.endswith('.zip'):
     cats = gpd.read_file(f"zip://{catch_file}")
+    
 else:
     cats = gpd.read_file(catch_file)
+# cats = cats.iloc[1000:1003]
 #%%
 
-# Check if the precip path and tem path are valid raster files
+input_SMHI_dir = os.path.join("/home/anlr0006/code/DOC_catchments", "input", "SMHI")
+os.makedirs(input_SMHI_dir, exist_ok=True)
+
+def ensure_local_copy(filepath):
+    filename = os.path.basename(filepath)
+    dest_path = os.path.join(input_SMHI_dir, filename)
+    
+    # Check if destination file already exists
+    if os.path.isfile(dest_path):
+        print(f"File {dest_path} already exists, skipping copy.")
+        return dest_path
+    
+    # If source and destination are different, copy the file
+    if os.path.abspath(filepath) != os.path.abspath(dest_path):
+        print(f"Copying {filepath} to {dest_path}")
+        # shutil.copy2(filepath, dest_path)
+    else:
+        print(f"File {filepath} already in target directory.")
+    
+    return dest_path
+
+# Make sure the files are copied to input/SMHI and update the paths
+precipitation_path = ensure_local_copy(precipitation_path)
+temperature_path = ensure_local_copy(temperature_path)
+file_threshold = ensure_local_copy(file_threshold)
+
+# Validate files exist after copying
 if not os.path.isfile(precipitation_path):
     raise FileNotFoundError(f"The precipitation file path {precipitation_path} does not exist.")
 if not os.path.isfile(temperature_path):
     raise FileNotFoundError(f"The temperature file path {temperature_path} does not exist.")
-
-# Check whether file_threshold is a valid raster file
-if not os.path.isfile(file_thresholds):
-    raise FileNotFoundError(f"The thresholds file path {file_thresholds} does not exist.")
+if not os.path.isfile(file_threshold):
+    raise FileNotFoundError(f"The thresholds file path {file_threshold} does not exist.")
 
 # Path exists
 #%% find threshold values
@@ -158,7 +191,7 @@ for idx, row in cats.iterrows():
 
     try:
         # Run your processing function; expect a DataFrame return
-        df_result = process_catchment(row, crs, precipitation_path, temperature_path, file_thresholds, output_dir)
+        df_result = process_catchment(row, crs, precipitation_path, temperature_path, file_threshold, output_dir)
 
         # Save to temp file first
         with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp_file:
