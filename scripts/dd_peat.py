@@ -11,21 +11,21 @@ parser.add_argument("-id", type=str, help="the id variable", default="mvmid")
 args = parser.parse_args()
 
 #%%
-# class Args:
-#     pass
+class Args:
+    pass
 
-# args = Args()
+args = Args()
 
-# args.id = "mvm_id"  # Default value for id variable
+args.id = "mvm_id"  # Default value for id variable
 
 
 
 # # # Example manual assignments
-# args.c = r"\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\01_data\02_raw_data\catchments\merged_catchments.zip"
-# args.o = r"C:\Users\anlr0006\repos-win\DOC_catchments\results\slu_sgu\ditch_test.csv"
-# args.d = r"\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\09_General\01_GIS\ditches\mosaic_ditches.gdb"
+args.c = r"/home/anlr0006/code/DOC_catchments/input/merged_catchments.zip"
+args.o = r"/home/anlr0006/code/DOC_catchments/results/slu_sgu/by_station"
+args.d = r"/home/anlr0006/code/DOC_catchments/input/mosaic_ditches.gdb"
 # args.pr = r"C:\Users\anlr0006\repos-win\DOC_catchments\input\Torvkarta\Klassad_torvkarta\ClassifiedPeatMap.tif"
-# args.pr = r"\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\09_General\01_GIS\Klassad_torvkarta\ClassifiedPeatMap.tif"
+args.pr = r"/home/anlr0006/code/DOC_catchments/input/Klassad_torvkarta/ClassifiedPeatMap.tif"
 
 #%% set the workspace and populate the gdb
 import os.path
@@ -146,9 +146,10 @@ from shapely.geometry import box
 from shapely.ops import unary_union
 import rasterio.features
 import matplotlib.colors as mcolors
+import gc
 
 
-def process_catchment_v2(polygon, peat, lines, args_o, idx=None):
+def process_catchment_v2(polygon, peat_raster_fp, lines, args_o, idx=None):
     """
     Process one catchment polygon with stepwise error handling:
     clip peat raster and lines,
@@ -179,8 +180,11 @@ def process_catchment_v2(polygon, peat, lines, args_o, idx=None):
     try:
         poly_bounds = polygon.geometry.bounds
         print(f"Clipping peat raster to polygon bounding box: {poly_bounds}")
+        peat = rioxarray.open_rasterio(peat_raster_fp, masked=True, chunks=True).rio.write_crs("EPSG:3006")
         peat_clip = peat.rio.clip_box(minx=poly_bounds[0], miny=poly_bounds[1],
                                      maxx=poly_bounds[2], maxy=poly_bounds[3])
+        del peat
+        gc.collect()
     except Exception as e:
         print(f"Failed clipping peat raster bbox: {e}")
         return pd.DataFrame([results])
@@ -289,13 +293,11 @@ def process_catchment_v2(polygon, peat, lines, args_o, idx=None):
     print(f"Finished processing polygon mvm_id: {poly_id}\n")
 
     results_df = pd.DataFrame([results])
-    folder = os.path.join(os.path.split(args.o)[0], "by_station")
-    os.makedirs(folder, exist_ok=True)
+    folder = args_o
+    # os.makedirs(folder, exist_ok=True)
     results_fp = os.path.join(folder ,f"peat_{poly_id}.csv")
     results_df.to_csv(results_fp, index=False)
     return results_df
-
-
 
 #%%
 import geopandas as gpd
@@ -320,16 +322,16 @@ peat_raster_fp = args.pr
 # Load data
 polygons = gpd.read_file(f"zip://{polygon_fp}").to_crs("EPSG:3006")
 lines = gpd.read_file(gdb_path, layer=layer_name).to_crs("EPSG:3006")
-peat = rioxarray.open_rasterio(peat_raster_fp, masked=True, chunks=True).rio.write_crs("EPSG:3006")
+
 
 #%%
 
 import pandas as pd
 
 
-for idx, polygon in polygons.iloc[20:24].iterrows():
-    df_res = process_catchment_v2(polygon, peat, lines, args.o, idx)
-
+for idx, polygon in polygons.iloc[1000:1003].iterrows():
+    df_res = process_catchment_v2(polygon, peat_raster_fp, lines, args.o, idx)
+    gc.collect()
 
 
 # %%
