@@ -1,8 +1,9 @@
 # Script for calculating peat area
 #%% Only needed if used from terminal, otherwise the first block needs to be commented out
+#%% Only needed if used from terminal, otherwise the first block needs to be commented out
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("-r", type=str, help="the location for the mosaic")
+parser.add_argument("-r", type=str, help="the raster")
 parser.add_argument("-c", type=str, help="the catchments")
 parser.add_argument("-o", type=str, help="the output")
 parser.add_argument("-id", type=str, help="the id variable", default="mvmid")
@@ -15,26 +16,23 @@ from arcpy import env
 from arcpy.sa import *
 
 import sys
+import pandas as pd
 
 #%%
+# class Args:
+#     pass
 
-class Args:
-    pass
+# args = Args()
 
-args = Args()
-
-args.id = "mvmid"  # Default value for id variable
+# args.id = "mvmid"  # Default value for id variable
 
 
 
 # # # Example manual assignments
-# args.c = r"data\aro_trendsjoar_106_250408.zip"
-# args.o = r"results\slu_sgu\test.csv"
-# args.r = r"input\Torvkarta\Klassad_torvkarta\ClassifiedPeatMap.tif"
-# args.gdb = r"results\arcpy_workspace\test.gdb"  # Default value for gdb
-
-
-
+# args.c = r"C:\Users\anlr0006\repos-win\DOC_catchments\data\aro_trendsjoar_106_250408.zip"
+# args.o = r"C:\Users\anlr0006\repos-win\DOC_catchments\results\slu_sgu\ditch_test.csv"
+# args.r = r"C:\Users\anlr0006\repos-win\DOC_catchments\input\Dikeskarta"
+# args.gdb = r"C:\Users\anlr0006\repos-win\DOC_catchments\results\arcpy_workspace\test_ditches.gdb"
 
 #%% set the workspace and populate the gdb
 import os.path
@@ -49,42 +47,28 @@ arcpy.env.overwriteOutput = True
 
 from zipfile import ZipFile
 import os
-import pandas as pd
 
 if os.path.exists(arcpy.env.workspace) == False:
     arcpy.management.CreateFileGDB(os.path.dirname(args.gdb), os.path.basename(args.gdb), "CURRENT")
 
-
-
-if args.c.endswith('.zip'):
-        
     with ZipFile(args.c, 'r') as zf:
         for file in zf.namelist():
-                extracted_path = os.path.join(arcpy.env.workspace, file)
-                if os.path.exists(extracted_path):
-                    os.remove(extracted_path)  # Remove the existing file
-                zf.extract(file, arcpy.env.workspace)
+            extracted_path = os.path.join(arcpy.env.workspace, file)
+            if os.path.exists(extracted_path):
+                os.remove(extracted_path)  # Remove the existing file
+            zf.extract(file, arcpy.env.workspace)
 
-        # Go into the folder and rename any ö to o
-        # Rename files with 'ö' to 'o'
-        for filename in os.listdir(arcpy.env.workspace):
-            if 'ö' in filename:
-                os.rename(
-                    os.path.join(arcpy.env.workspace, filename),
-                    os.path.join(arcpy.env.workspace, filename.replace('ö', 'o'))
-                )
+    # Go into the folder and rename any ö to o
+    # Rename files with 'ö' to 'o'
+    for filename in os.listdir(arcpy.env.workspace):
+        if 'ö' in filename:
+            os.rename(
+                os.path.join(arcpy.env.workspace, filename),
+                os.path.join(arcpy.env.workspace, filename.replace('ö', 'o'))
+            )
 
-    # Get the shapefile name
-    shapefile = os.path.join(arcpy.env.workspace,os.path.splitext(os.path.basename(args.c))[0].replace('ö', 'o') + ".shp")
-else:
-    source_path = args.c
-    out_loc = arcpy.env.workspace
-    out_name =  os.path.split(arg.c)[1]
-
-    arcpy.FeatureClassToFeatureClass_conversion(source_path, out_loc, out_name)
-    shapefile = os.path.join(out_loc, out_name)
-
-print(shapefile)
+# Get the shapefile name
+shapefile = os.path.join(arcpy.env.workspace,os.path.splitext(os.path.basename(args.c))[0].replace('ö', 'o') + ".shp")
 
 #%% Check id variable and availability of rasters
 # ID
@@ -126,6 +110,7 @@ arcpy.conversion.ExportTable(in_table = out_table,
                              out_table = csv_output)
 
 data = pd.read_csv(csv_output)
+
 data = data.rename(columns={'VALUE_0': "Vatten",
                             'VALUE_1': "Mineraljord",
                             'VALUE_2': "Torv_30",

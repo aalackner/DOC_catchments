@@ -17,20 +17,21 @@ from arcpy.sa import *
 import sys
 
 #%%
-# class Args:
-#     pass
+class Args:
+    pass
 
-# args = Args()
+args = Args()
 
-# args.id = "mvmid"  # Default value for id variable
+args.id = "mvm_id"  # Default value for id variable
 
 
 
-# # # Example manual assignments
-# args.c = r"C:\Users\anlr0006\repos-win\DOC_catchments\data\aro_trendsjoar_106_250408.zip"
-# args.o = r"C:\Users\anlr0006\repos-win\DOC_catchments\results\slu_sgu\ditch_test.csv"
-# args.r = r"C:\Users\anlr0006\repos-win\DOC_catchments\input\Dikeskarta"
-# args.gdb = r"C:\Users\anlr0006\repos-win\DOC_catchments\results\arcpy_workspace\test_ditches.gdb"
+# # Example manual assignments
+args.c = r"\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\01_data\02_raw_data\catchments\test.zip"
+args.o = r"C:\Users\anlr0006\repos-win\DOC_catchments\results\slu_sgu\ditch_test.csv"
+args.r = r"C:\Users\anlr0006\repos-win\DOC_catchments\input\Dikeskarta"
+args.pr = r"C:\Users\anlr0006\repos-win\DOC_catchments\input\Torvkarta\Klassad_torvkarta\ClassifiedPeatMap.tif"
+args.gdb = r"C:\Users\anlr0006\repos-win\DOC_catchments\results\arcpy_workspace\test_ditches.gdb"
 
 #%% set the workspace and populate the gdb
 import os.path
@@ -89,6 +90,7 @@ out_table = os.path.join(arcpy.env.workspace,"output_table_ditch")
 output = os.path.join(args.r,"mosaic_ditches.gdb", "Diken_vektor_Merge")
 
 if os.path.exists(os.path.join(args.r, "mosaic_ditches.gdb")) == False:
+    print(f"Creating geodatabase at {os.path.join(args.r, 'mosaic_ditches.gdb')}")
     arcpy.management.CreateFileGDB(args.r, "mosaic_ditches.gdb", "CURRENT")
 
     # Dynamically construct the input paths using args.r
@@ -130,4 +132,3 @@ csv_output = args.o  # Ensure args.o ends with ".csv"
 
 arcpy.conversion.ExportTable(in_table = out_table, 
                              out_table = csv_output)
-# %%
