@@ -14,11 +14,11 @@ $id = "mvm_id"
 
 Write-Output "environment activated"
 
-python scripts\dd_peat.py -o C:\Users\anlr0006\repos-win\DOC_catchments\results\slu_sgu\peat_ditches_merged_catchements.csv -d $ditchdatabase -pr $peat -c $input_file -id $id > results/slu_sgu/output_shell_merged_catchments.txt
+python scripts\dd_peat.py -o C:\Users\anlr0006\repos-win\DOC_catchments\results\slu_sgu\by_station\quartiles_area -d $ditchdatabase -pr $peat -c $input_file -id $id >> results/slu_sgu/output_shell_merged_catchments_4.txt
 
 Write-Output "peat and ditch done"
 
-python scripts\soil_depth.py -r "default"  -c $input_file -o  C:\Users\anlr0006\repos-win\DOC_catchments\results\slu_sgu\soil_depth_merged_catchments.csv
+# python scripts\soil_depth.py -r "default"  -c $input_file -o  C:\Users\anlr0006\repos-win\DOC_catchments\results\slu_sgu\soil_depth_merged_catchments.csv
 
 deactivate
 

@@ -154,16 +154,32 @@ combine_col <- function (data){
   return(data)
 }
 
+
+combine_dates <- function(data) {
+  n_old <- data%>% nrow()
+  data %>% 
+    group_by(mvm_id, sampling_date) %>% 
+    summarise(across(where(is.numeric), ~ if (all(is.na(.))) NA_real_ else mean(., na.rm = TRUE)),
+              .groups = "drop") -> data
+  n_new <- data%>% nrow()
+  print(paste("removed" ,n_old - n_new, "duplicate rows") )
+  return(data)
+}
+
+
+
+
 process_samples <- function(full.samples, csv.path, id) {
   
   # Try the operation and catch errors
   tryCatch({
     # Print number of samples and id
-    print(paste("mvm_is: ", id, " # of samples :", length(full.samples$samples$sampleId)))
+    print(paste("mvm_id: ", id, " # of samples :", length(full.samples$samples$sampleId)))
     overview <<- rbind(overview, data.frame(mvm_id = id, comment = length(full.samples$samples$sampleId)))
     # Step 2: Define the pipeline (assuming into_table() and combine_col() are defined elsewhere)
     full.samples %>%
-      into_table(.) %>%
+      into_table(.) %>% 
+      combine_dates(.) %>% 
       # combine_col(.) %>%
       write.csv(., file = csv.path)
     
@@ -185,7 +201,7 @@ get_samples <- function(folder, id) {
     full.samples<-fromJSON(url.call)
     
     ## Write as json to the folder
-    write(toJSON(full.samples), file = json.path)
+    # write(toJSON(full.samples), file = json.path)
     
     return(full.samples)
   }, error = function(e) {
