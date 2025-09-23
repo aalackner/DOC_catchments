@@ -32,20 +32,20 @@ into_table <- function(full.samples){
   for (i in 1:length(df_sample$samplingDate)){
     
     # check that it is the right type of sample, we only want water chemistry
-    if (!(df_sample$surveyType[[i]] %in% c("Vattenkemi i vattendrag",
-                                         "Sparkprovtagning (tidsserier) v1",
-                                         "Vattenkemi KEU, vattendrag", 
-                                         "NA", NA))) {
-      print(paste0("For mvm_id:", id, " sample: ", i,  " the type was: ", df_sample$surveyType[[i]]))
-      next
+    if ("surveyType" %in% names(df_sample)) {
+      if (!(df_sample$surveyType[[i]] %in% c("Vattenkemi i vattendrag",
+                                            "Sparkprovtagning (tidsserier) v1",
+                                            "Vattenkemi KEU, vattendrag", "Vattenkemi i sjöar", "Vattenkemi",
+                                            "NA", NA,"Vattenkemi KEU, sjöar", "vattenkemi i sjöar"))) {
+        print(paste0("For mvm_id:", id, " sample: ", i, " the type was: ", df_sample$surveyType[[i]]))
+        next
+      }
     }
     
     # make an empty tibble where a single row is a single sample and add sample date, id and station id to the row.  
-    row = tibble(sampling_date = date(), 
-                 sample_id = integer(),
-                 mvm_id = integer())
+    row = tibble(sampling_date = date(), sample_id = integer(), mvm_id = integer(), min_depth = double(), max_depth = double(), subprogramName = character(), studyName = character())
     
-    row %>% add_row(sampling_date = df_sample$samplingDate[[i]], sample_id = df_sample$sampleId[[i]], mvm_id = df_sample$stationId[[i]]) -> row
+    row %>% add_row(sampling_date = df_sample$samplingDate[[i]], sample_id = df_sample$sampleId[[i]],subprogramName = df_sample$subProgramName[[i]],studyName = df_sample$studyName[[i]], min_depth = df_sample$minDepth[[i]],max_depth = df_sample$maxDepth[[i]],   mvm_id = df_sample$stationId[[i]]) -> row
     df <- df_sample$observations[[i]]
     for (j in 1: length(df_sample$observations[[i]]$propertyCode)){
       name = paste(df[j,]$propertyCode[1],gsub("[^[:alnum:] ]", "", df[j,]$observationValues[[1]]$unit), sep = "_" )
@@ -67,7 +67,6 @@ into_table <- function(full.samples){
   }
   
   table %>% mutate(sampling_date = as.Date(sampling_date), year = year(sampling_date)) -> table
-  # print(table)
   return(table)
 }
 
@@ -179,8 +178,8 @@ get_samples <- function(folder, id) {
   # Try the operation and catch errors
   tryCatch({
     # Step 2: Define the pipeline (assuming into_table() and combine_col() are defined elsewhere)
-    url.call <- paste0('https://miljodata.slu.se/api/observations-service/v2/full-samples/query?token=', my.token, '&stationIds=', id, '&fromYear=1990&toYear=2024&productType=Chemistry')
-    json.path <- paste0(folder, "JSON\\", id, ".json" )
+    url.call <- paste0('https://miljodata.slu.se/api/observations-service/v2/full-samples/query?token=', my.token, '&stationIds=', id, '&fromYear=1970&toYear=1991&productType=Chemistry')
+    json.path <- paste0(folder, "JSON_pre/", id, ".json" )
     
     full.samples<-fromJSON(url.call)
     
@@ -191,6 +190,8 @@ get_samples <- function(folder, id) {
   }, error = function(e) {
     # Step 3: If an error occurs, add the id and error message to the fail_table
     fail_table <<- rbind(fail_table, data.frame(mvm_id = id, comment = e$message))
+    print(id)
+    print(e)
     return(NA)
   })
 }

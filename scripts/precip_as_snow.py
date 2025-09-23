@@ -1,32 +1,32 @@
 # Parse arguments
-import argparse
-parser = argparse.ArgumentParser()
-parser.add_argument("-f", type=str, help="folder for the rasters")
-parser.add_argument("-c", type=str, help="the catchments")
-parser.add_argument("-o", type=str, help="the output folder for by station results")
-# parser.add_argument("-sy", type=int, help="start year")
-# parser.add_argument("-ey", type=int, help="end year")
-parser.add_argument("-t", type=str, help="gridded threshold form Jenson 2017")
-# parser.add_argument("-res", type=str, help="daily (default) or month(ly) resolution")
-parser.add_argument("-id",type = str, default = "mvm_id", help = "id variable")
+# import argparse
+# parser = argparse.ArgumentParser()
+# parser.add_argument("-f", type=str, help="folder for the rasters")
+# parser.add_argument("-c", type=str, help="the catchments")
+# parser.add_argument("-o", type=str, help="the output folder for by station results")
+# # parser.add_argument("-sy", type=int, help="start year")
+# # parser.add_argument("-ey", type=int, help="end year")
+# parser.add_argument("-t", type=str, help="gridded threshold form Jenson 2017")
+# # parser.add_argument("-res", type=str, help="daily (default) or month(ly) resolution")
+# parser.add_argument("-id",type = str, default = "mvm_id", help = "id variable")
 
-args = parser.parse_args()
-# date_range = slice(f"{args.sy}-01-01", f"{args.ey}-12-31")
-catch_file = args.c
-folder_SMHI = args.f
-# resolution = args.res
-file_threshold = args.t
-output_dir = args.o
+# args = parser.parse_args()
+# # date_range = slice(f"{args.sy}-01-01", f"{args.ey}-12-31")
+# catch_file = args.c
+# folder_SMHI = args.f
+# # resolution = args.res
+# file_threshold = args.t
+# output_dir = args.o
 #%%
 import pandas as pd
 import geopandas as gpd
 import os
 #%%
 
-# output_dir = "/home/anlr0006/mnt/anna/My Documents/04_Projects/11_Lakes/01_data/03_processed_data/inter_climate" 
-# catch_file = "/home/anlr0006/mnt/anna/My Documents/04_Projects/11_Lakes/01_data/02_raw_data/catchments/merged_catchments/merged_catchments.shp" 
-# folder_SMHI= "/home/anlr0006/mnt/anna/My Documents/04_Projects/09_General/03_data/DOC_catchments/input/SMHI" 
-# file_threshold =  "/home/anlr0006/mnt/anna/My Documents/04_Projects/09_General/01_GIS/Jennings_2019/jennings_et_al_2018_file4_temp50_raster.tif"
+output_dir = "/home/anlr0006/mnt/anna/My Documents/04_Projects/02_Top-Down/01_data/03_processed_data/01_daily_time_series/climate_stations" 
+catch_file = "/home/anlr0006/mnt/anna/My Documents/04_Projects/02_Top-Down/01_data/04_gis_data/01_watersheds/catch_316.shp" 
+folder_SMHI= "/home/anlr0006/mnt/anna/My Documents/04_Projects/09_General/03_data/DOC_catchments/input/SMHI" 
+file_threshold =  "/home/anlr0006/mnt/anna/My Documents/04_Projects/09_General/01_GIS/Jennings_2019/jennings_et_al_2018_file4_temp50_raster.tif"
 # catch_file = "/home/anlr0006/mnt/anna/My Documents/04_Projects/11_Lakes/01_data/02_raw_data/catchments/merged_catchments/merged_catchments.shp"
 # file_thresholds = "/home/anlr0006/mnt/anna/My Documents/04_Projects/09_General/01_GIS/Jennings_2019/jennings_et_al_2018_file4_temp50_raster.tif"
 # folder_SMHI = "/home/anlr0006/mnt/anna/My Documents/04_Projects/09_General/03_data/DOC_catchments/input/SMHI/"
@@ -50,8 +50,12 @@ if catch_file.endswith('.zip'):
     
 else:
     cats = gpd.read_file(catch_file)
+    cats[id_var] = cats[id_var].astype(int)
+
+
 # cats = cats.iloc[1000:1003]
 #%%
+
 
 input_SMHI_dir = os.path.join("/home/anlr0006/code/DOC_catchments", "input", "SMHI")
 os.makedirs(input_SMHI_dir, exist_ok=True)
@@ -141,7 +145,7 @@ def process_catchment(row, crs, precipitation_path, temperature_path, file_thres
         del thresholds_proj
 
         # Compute snow precipitation
-        clipped_ds["pr_snow"] = xr.where(clipped_ds["tas"] <= clipped_ds["band_data"], clipped_ds["pr"], 0)
+        clipped_ds["pr_snow"] = xr.where(clipped_ds["tas"] <= clipped_ds["band_data"].fillna(0), clipped_ds["pr"], 0)
         clipped_ds["pr_snow"].attrs['units'] = 'kg water / m^2'
         clipped_ds["pr_snow"].attrs['long_name'] = 'Precipitation as snow'
 
@@ -173,6 +177,8 @@ import os
 import subprocess
 import tempfile
 import pandas as pd
+
+
 
 for idx, row in cats.iterrows():
     target_path = os.path.join(output_dir, f"{row['mvm_id']}.csv")

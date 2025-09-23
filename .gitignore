@@ -188,3 +188,6 @@ ndvi.py
 *.csv
 temp
 arcpy_env/  
+
+*.out
+.vscode/settings.json

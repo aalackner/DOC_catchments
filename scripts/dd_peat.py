@@ -11,21 +11,21 @@ parser.add_argument("-id", type=str, help="the id variable", default="mvmid")
 args = parser.parse_args()
 
 #%%
-# class Args:
-#     pass
+class Args:
+    pass
 
-# args = Args()
+args = Args()
 
-# args.id = "mvm_id"  # Default value for id variable
+args.id = "mvm_id"  # Default value for id variable
 
 
 
 # # # Example manual assignments
-# args.c = r"\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\01_data\02_raw_data\catchments\merged_catchments.zip"
-# args.o = r"/home/anlr0006/code/DOC_catchments/results/slu_sgu/by_station"
+# args.c = r"/home/anlr0006/mnt/anna/My Documents/04_Projects/11_Lakes/01_data/02_raw_data/catchments/merged_catchments.zip"
+# args.o = r"/home/anlr0006/code/DOC_catchments/results/slu_sgu/by_station/quartiles"
 # args.d = r"/home/anlr0006/code/DOC_catchments/input/mosaic_ditches.gdb"
-# # args.pr = r"C:\Users\anlr0006\repos-win\DOC_catchments\input\Torvkarta\Klassad_torvkarta\ClassifiedPeatMap.tif"
-# args.pr = r"/home/anlr0006/code/DOC_catchments/input/Klassad_torvkarta/ClassifiedPeatMap.tif"
+# args.pr = r"/home/anlr0006/code/DOC_catchments/input/Klassad_torvkarta/Klassad_torvkarta/ClassifiedPeatMap.tif"
+# polygon_fp = r"\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\01_data\02_raw_data\catchments\merged_catchments.zip"
 
 #%% set the workspace and populate the gdb
 import os.path
@@ -263,21 +263,19 @@ gdb_path = args.d
 
 layer_name = "Diken_vektor_Merge"
 
-# polygon_fp = r"\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\01_data\02_raw_data\catchments\merged_catchments.zip"
+
 polygon_fp = args.c
 
 peat_raster_fp = args.pr
 
 # Load data
-polygons = gpd.read_file(f"zip://{polygon_fp}").to_crs("EPSG:3006").sort_values(by='Shape_Area').iloc[-139:]
+polygons = gpd.read_file(f"zip://{polygon_fp}").to_crs("EPSG:3006").sort_values(by='Shape_Area').iloc[-139:].sort_values(by='Shape_Area', ascending= False)
 lines = gpd.read_file(gdb_path, layer=layer_name).to_crs("EPSG:3006")
 
 
 #%%
 
 import pandas as pd
-
-
 import time
 
 for idx, polygon in polygons.iterrows():
@@ -287,191 +285,4 @@ for idx, polygon in polygons.iterrows():
 
     elapsed_time = time.time() - start_time
     print(f"Processed mvm_id {polygon.get('mvm_id', idx)} in {elapsed_time:.2f} seconds.")
-
-
-# %%
-
-# ##################################### Doing it using the ditches raster #########################
-
-# ditches_fp = r"C:\Users\anlr0006\repos-win\DOC_catchments\input\Dikeskarta\raster\Mosaic_ditches.tif"
-# peat_fp = r"C:\Users\anlr0006\repos-win\DOC_catchments\input\Torvkarta\Klassad_torvkarta\ClassifiedPeatMap.tif"
-# out_fp = r"C:\Users\anlr0006\repos-win\DOC_catchments\input\Dikeskarta\raster\Mosaic_ditches_aligned.tif"
-
-
-# import numpy as np
-# import xarray as xr
-# import rioxarray
-# import rasterio
-
-# def block_sum(block):
-#     # block is a 2D numpy array
-#     pad_y = (2 - block.shape[0] % 2) % 2
-#     pad_x = (2 - block.shape[1] % 2) % 2
-#     if pad_y or pad_x:
-#         block = np.pad(block, ((0, pad_y), (0, pad_x)), mode='constant', constant_values=0)
-#     new_shape = (block.shape[0]//2, 2, block.shape[1]//2, 2)
-#     reshaped = block.reshape(new_shape)
-#     summed = reshaped.sum(axis=(1, 3)).astype(np.uint16)
-#     return summed
-
-# def padded_length(length, block=2):
-#     return (length + block - 1) // block * block
-
-# def pad_coords(coords, target_len):
-#     current_len = len(coords)
-#     if target_len <= current_len:
-#         return coords[:target_len]
-#     else:
-#         pad_vals = np.full(target_len - current_len, coords[-1])
-#         return np.concatenate([coords.values, pad_vals])
-
-
-# # Open ditches raster with chunks for dask lazy loading
-# ditch_data = rioxarray.open_rasterio(ditches_fp, chunks={'x': 512, 'y': 512}).squeeze()
-
-# # Open peat raster for metadata
-# peat = rioxarray.open_rasterio(peat_fp)
-# with rasterio.open(peat_fp) as src:
-#     peat_meta = src.meta.copy()
-
-# # Calculate padded input lengths to handle odd sizes
-# orig_len_y = ditch_data.sizes['y']
-# orig_len_x = ditch_data.sizes['x']
-# padded_len_y = padded_length(orig_len_y, 2)
-# padded_len_x = padded_length(orig_len_x, 2)
-
-# # Downsample coordinates of the original raster by 2 (use only existing, no padding here)
-# # We'll generate final coords matching the aggregated shape below
-
-# # Run aggregation with dask map_blocks
-# aggregated_data = ditch_data.data.map_blocks(
-#     block_sum,
-#     dtype=np.uint16,
-#     drop_axis=(0, 1),  # drop inside-block dims after aggregation
-#     chunks=(ditch_data.chunks[0][0]//2, ditch_data.chunks[1][0]//2)
-# )
-
-# # Get full shape of aggregated data (after block_sum)
-# # Get aggregated shape from data
-# agg_shape_y, agg_shape_x = aggregated_data.shape
-
-# # Downsample original coords by 2 (floor division)
-# new_y_base = ditch_data['y'].values[:padded_len_y][::2]
-# new_x_base = ditch_data['x'].values[:padded_len_x][::2]
-
-# # Now crop or pad coordinates to exactly match aggregated shape
-# def adjust_coords(coords, target_len):
-#     if len(coords) > target_len:
-#         # Crop to target length
-#         return coords[:target_len]
-#     elif len(coords) < target_len:
-#         # Pad with last value
-#         pad_len = target_len - len(coords)
-#         return np.pad(coords, (0, pad_len), mode='edge')
-#     else:
-#         return coords
-
-# new_y = adjust_coords(new_y_base, agg_shape_y)
-# new_x = adjust_coords(new_x_base, agg_shape_x)
-
-# # If coordinates are shorter than aggregated shape (due to padding), pad with last value
-# if len(new_y) < agg_shape_y:
-#     new_y = np.pad(new_y, (0, agg_shape_y - len(new_y)), constant_values=new_y[-1])
-# if len(new_x) < agg_shape_x:
-#     new_x = np.pad(new_x, (0, agg_shape_x - len(new_x)), constant_values=new_x[-1])
-
-# # Wrap aggregated data into an xarray DataArray with coords and dims
-# aggregated = xr.DataArray(
-#     aggregated_data,
-#     dims=('y', 'x'),
-#     coords={'y': new_y, 'x': new_x},
-#     name='aggregated_ditches'
-# )
-
-# # Update peat metadata for output raster (2x downsampling)
-# peat_meta.update({
-#     'dtype': 'uint16',
-#     'count': 1,
-#     'transform': peat.rio.transform() * rasterio.Affine.scale(2, 2)
-# })
-
-# # Save aggregated raster to disk with compression and tiling
-# aggregated.rio.to_raster(
-#     out_fp,
-#     dtype='uint16',
-#     compress='lzw',
-#     driver='GTiff',
-#     tiled=True,
-#     blockxsize=512,
-#     blockysize=512
-# )
-
-# print("Aggregation complete and saved to:", out_fp)
-
-
-# #%%
-
-# import rasterio
-
-# # Load peat raster (metadata only)
-# with rasterio.open(peat_fp) as peat:
-#     peat_profile = peat.profile
-#     peat_transform = peat.transform
-#     peat_res = peat.res
-#     peat_crs = peat.crs
-#     peat_bounds = peat.bounds
-
-# # Load the resampled ditches raster
-# with rasterio.open(out_fp) as ditches:
-#     ditches_profile = ditches.profile
-#     ditches_transform = ditches.transform
-#     ditches_res = ditches.res
-#     ditches_crs = ditches.crs
-#     ditches_bounds = ditches.bounds
-
-# def bounds_overlap(bounds1, bounds2):
-#     return not (
-#         bounds1.right <= bounds2.left or
-#         bounds1.left >= bounds2.right or
-#         bounds1.top <= bounds2.bottom or
-#         bounds1.bottom >= bounds2.top
-#     )
-
-# # Compare
-# print("✅ CRS match:", peat_crs == ditches_crs)
-# print("✅ Resolution match:", peat_res == ditches_res)
-# print("✅ Transform match:", peat_transform == ditches_transform)
-# print("✅ Bounds overlap:", bounds_overlap(peat_bounds, ditches_bounds))
-
-# # %%
-# import matplotlib.pyplot as plt
-# import rasterio
-# import numpy as np
-
-# # Read central window
-# with rasterio.open(out_fp) as ditches:
-#     ditch_nodata = ditches.nodata
-#     win = rasterio.windows.Window(ditches.width//2, ditches.height//2, 500, 500)
-#     ditch_data = ditches.read(1, window=win)
-
-# with rasterio.open(peat_fp) as peat:
-#     peat_nodata = peat.nodata
-#     peat_data = peat.read(1, window=win)
-
-# # Mask nodata
-# ditch_masked = np.ma.masked_equal(ditch_data, ditch_nodata)
-# peat_masked = np.ma.masked_equal(peat_data, peat_nodata)
-
-# # Plot
-# plt.figure(figsize=(12,5))
-# plt.subplot(1,2,1)
-# plt.title("Ditches (resampled)")
-# plt.imshow(ditch_masked, cmap='gray')
-
-# plt.subplot(1,2,2)
-# plt.title("Peat")
-# plt.imshow(peat_masked, cmap='terrain')
-
-# plt.tight_layout()
-# plt.show()
 
