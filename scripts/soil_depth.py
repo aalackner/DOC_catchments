@@ -3,7 +3,8 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("-r", type=str,default = "default", help="the raster")
 parser.add_argument("-c", type=str, help="the catchments")
-parser.add_argument("-o", type=str, help="the output")
+parser.add_argument("-o", type=str, help="the output file")
+parser.add_argument("-id",type = str, default = "mvm_id", help = "id variable")
 
 """
 Requires acess to the sgu soildepth raster.  
@@ -35,18 +36,25 @@ else:
 zip_catch = args.c
 
 
+if zip_catch.endswith('.zip'):
+    gdf_cats = gpd.read_file(f"zip://{zip_catch}")
+    
+else:
+    gdf_catch = gpd.read_file(zip_catch)
 
-# Load the shapefiles from the ZIP files
-gdf_catch = gpd.read_file(f"zip://{zip_catch}")
 
-
+# check id
+id_var = args.id
+# Check if the specified ID column exists in the GeoDataFrame
+if id_var not in gdf_catch.columns:
+    raise ValueError(f"ID column '{id_var}' not found in the GeoDataFrame. Available columns are: {', '.join(gdf_catch.columns)}")
 
 output_folder = args.o  # Folder to save maps
 
 
 
 # Step 1: Read the shapefile (example)
-gdf = gdf_catch.iloc[100:103] # Adjust for the number of catchments you want to process
+gdf = gdf_catch 
 
 # Step 2: Prepare to collect results and failures
 statistics_results = []
@@ -108,7 +116,7 @@ for idx, zone in gdf.iterrows():
 
             if len(masked_values) > 0:
                 statistics_results.append({
-                    'mvm_id': zone['mvm_id'],  # Adjust to your zone ID field
+                    'id': zone[id_var],  # Temporarily use 'id' as the key
                     'mean': np.mean(masked_values),
                     'stddev': np.std(masked_values),
                     'min': np.min(masked_values),
@@ -126,6 +134,9 @@ for idx, zone in gdf.iterrows():
 
 # Step 3: Save statistics to CSV
 statistics_df = pd.DataFrame(statistics_results)
+
+statistics_df.rename(columns={'id': id_var}, inplace=True)
+
 statistics_df.to_csv(output_folder, index=False)
 
 # Step 4: Log failed IDs to a text file
