@@ -1,16 +1,16 @@
 # DOC_catchments
 
-This includes scripts for calculating catchment characteristics in Sweden based on different data sources used in spatial analysis of DOC trends.  
+This repository includes methods as form of R and python scripts for calculating catchment characteristics within Sweden based on different open source available data.
 
 # How to
 
 ## Snakemake
 you can either run the workflow or parts of the workflow using snakemake and containers. Then you need to have apptainer and snakemake installed. 
 
-## individual scripts in your own environment
-You can also run individual scripts and make sure you are running it in a conda or python environment that has the requirnments installed. these will differ from script to script. 
+## Individual scripts in your own environment
+You can also run individual scripts and make sure you are running it in a conda or python environment that has the requirnments installed. These will differ from script to script. 
 
-Commands to run these in the terminal can be found in the file **commands**.
+A more detailed description of the individual commands to run these in the terminal can be found in documentaion.
 
 If you want to run individual scripts check the script to make sure you use the right arguments rom the terminal or change the input files in the script. 
 
