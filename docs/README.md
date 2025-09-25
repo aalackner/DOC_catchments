@@ -69,7 +69,7 @@ ___
 
 ## Soil Depth 
 
-### Workflow: 
+#### Workflow: 
 
 soil_depth.py
 
@@ -79,22 +79,22 @@ soil_depth.py
 - -o    output file as a .csv
 - -id   id variable as str, default: "mvm_id"
 
-### Dependencies:
+#### Dependencies:
 
 rasterio, geopandas , numpy,  pandas
 
 
-### Input: 
+#### Input: 
 
 SGU Soil Depth Map can be downloaded from [SGU's website](https://www.sgu.se/produkter-och-tjanster/geologiska-data/jordarter--geologiska-data/jorddjupsdata/), where you can also find more detailed information about the soil depth model used for the generation of the data. 
 
-### Output: 
+#### Output: 
 
 A .csv file containing a row for each catchment with id, mean soil depth of the catchment, standard deviation of soil depth, the minimum soil depth, the maximum soil depth, the 25th percentile, 75th percentile. 
 
 In the same folder as the output file you will also get a txt file "failed_soil_depth.txt" With error ,messages for each catchment for which the script did not succeed. 
 
-### Example
+#### Example
 
 ```bash
 python scripts\soil_depth.py -r "path\to\soil\depth\jorddjup_10x10m.tif"  -c "path\to\catchments.shp" -o  "path\to\results\soil_depth.csv" -id "id"
