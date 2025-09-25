@@ -36,17 +36,17 @@ if file_HK.endswith('.shp'):
     HK = gpd.read_file(file_HK) # HK = 1 is the area underneath the high coast 
 elif file_HK.endswith('.zip'):
     HK = gpd.read_file(f"zip://{file_HK}")
-else:
-    file_HK = r"\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects/09_General/01_GIS/HK.shp"
-    HK = gpd.read_file(file_HK)
+# else:
+#     file_HK = r"09_General/01_GIS/HK.shp"
+#     HK = gpd.read_file(file_HK)
 
 if file_ER.endswith('.shp'):
     ER = gpd.read_file(file_ER)
 elif file_ER.endswith('.zip'):
     ER = gpd.read_file(f"zip://{file_ER}")
-else:
-    file_ER = r"\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects/09_General/01_GIS/ekoreg_2006_sweref99.shp"
-    ER = gpd.read_file(file_ER)
+# else:
+#     file_ER = r"09_General/01_GIS/ekoreg_2006_sweref99.shp"
+#     ER = gpd.read_file(file_ER)
 
 #%%
 if file_catch.endswith('.shp'):
