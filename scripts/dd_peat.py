@@ -6,27 +6,12 @@ parser.add_argument("-d", type=str, help="the ditch database")
 parser.add_argument("-c", type=str, help="the catchments")
 parser.add_argument("-pr", type=str, help="the peat raster")
 parser.add_argument("-o", type=str, help="the output")
-parser.add_argument("-id", type=str, help="the id variable", default="mvmid")
-
+parser.add_argument("-id", type=str, help="the id variable", default="mvm_id")
+parser.add_argument("-ln", type=str, help="if the ditch map is a gdb then the layer containing the ditches", default="Diken_vektor_Merge")
+parser.add_argument("-st", type=int, help="the split threshold", default=1.1e8)
 args = parser.parse_args()
 
-#%%
-class Args:
-    pass
-
-args = Args()
-
-args.id = "mvm_id"  # Default value for id variable
-
-
-
-# # # Example manual assignments
-# args.c = r"/home/anlr0006/mnt/anna/My Documents/04_Projects/11_Lakes/01_data/02_raw_data/catchments/merged_catchments.zip"
-# args.o = r"/home/anlr0006/code/DOC_catchments/results/slu_sgu/by_station/quartiles"
-# args.d = r"/home/anlr0006/code/DOC_catchments/input/mosaic_ditches.gdb"
-# args.pr = r"/home/anlr0006/code/DOC_catchments/input/Klassad_torvkarta/Klassad_torvkarta/ClassifiedPeatMap.tif"
-# polygon_fp = r"\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\01_data\02_raw_data\catchments\merged_catchments.zip"
-
+id_var = args.id
 #%% set the workspace and populate the gdb
 import os.path
 import rioxarray
@@ -71,7 +56,7 @@ def plot_peat_catchment(polygon, peat_gt1, lines_clip, lines_in_peat, perc, args
         cbar.set_yticklabels(['water', 'mineral soil', 'peat >30cm', 'peat >40cm', 'peat >50cm'])
 
         # Set title and labels
-        catchment_id = polygon['mvm_id'] if 'mvm_id' in polygon else idx
+        catchment_id = polygon[id_var] if id_var in polygon else idx
         print(f"[INFO] Setting title with catchment ID: {catchment_id}")
         plt.title(f"Catchment {catchment_id} with {perc:.0f}% in peat")
         plt.legend(loc='upper right')
@@ -133,7 +118,7 @@ def process_catchment_v2(polygon, peat_raster_fp, lines, args_o, idx=None, crs =
     """
     Process a catchment polygon. Automatically splits very large polygons into quadrants.
     """
-    poly_id = polygon['mvm_id'] if 'mvm_id' in polygon else idx
+    poly_id = polygon[id_var] if id_var in polygon else idx
     
     area = polygon.geometry.area
 
@@ -149,19 +134,19 @@ def process_catchment_v2(polygon, peat_raster_fp, lines, args_o, idx=None, crs =
 
         for i, sub in enumerate(sub_polys, start=1):
             sub_id = f"{poly_id}_Q{i}"
-            sub_gdf = gpd.GeoDataFrame({'mvm_id': [sub_id], 'geometry': [sub]}, crs=crs)
+            sub_gdf = gpd.GeoDataFrame({id_var: [sub_id], 'geometry': [sub]}, crs=crs)
             process_catchment_v2(sub_gdf.iloc[0], peat_raster_fp, lines, args_o, idx=sub_id, split_threshold=split_threshold, catchment_area = catchment_area)
         return  # Don't process the large polygon itself
 
     results_fp = os.path.join(args_o, f"peat_{poly_id}.csv")
     if os.path.exists(results_fp):
-        print(f"Output CSV for mvm_id {poly_id} already exists at {results_fp}, skipping processing.")
+        print(f"Output CSV for id {poly_id} already exists at {results_fp}, skipping processing.")
         return
 
-    print(f"\nStarting processing for polygon mvm_id: {poly_id}")
+    print(f"\nStarting processing for polygon id: {poly_id}")
 
     results = {
-        'mvm_id': poly_id,
+        id_var: poly_id,
         'perc_ditch_in_peat': np.nan,
         'total_ditch_length': np.nan,
         'ditch_length_in_peat': np.nan,
@@ -243,7 +228,9 @@ def process_catchment_v2(polygon, peat_raster_fp, lines, args_o, idx=None, crs =
         print(f"Failed calculating line lengths: {e}")
 
     pd.DataFrame([results]).to_csv(results_fp, index=False)
-    print(f"Finished processing polygon mvm_id: {poly_id}\n")
+    print(f"Finished processing polygon id: {poly_id}\n")
+
+#%%
 
 
 
@@ -257,20 +244,66 @@ from shapely.geometry import shape
 import dask
 import dask.array as da
 
+#%%
 
-# Paths
+# Load in the vectors of the ditches
 gdb_path = args.d
+layer_name = args.ln
 
-layer_name = "Diken_vektor_Merge"
+import geopandas as gpd
+import os
+from pathlib import Path
+import fiona
+
+def load_geodata(gdb_path):
+    gdb_path = Path(gdb_path)
+    
+    if gdb_path.suffix == ".gdb":
+        
+        try:
+            print("Reading gdb") # Try to load the specified layer
+            gdf = gpd.read_file(gdb_path, layer=layer_name).to_crs("EPSG:3006")
+            return gdf
+        except ValueError as e:
+            # Layer not found – list all layers and raise an error with that info
+            available_layers = fiona.listlayers(gdb_path)
+            raise ValueError(
+                f"Layer '{layer_name}' not found in GDB. Available layers: {available_layers}"
+            ) from e
+
+    elif gdb_path.is_dir():
+        # Look for all .shp files
+        shp_files = list(gdb_path.glob("*.shp"))
+        if not shp_files:
+            raise FileNotFoundError(f"No shapefiles found in folder: {gdb_path}")
+
+        # Read and combine all shapefiles into one GeoDataFrame
+        gdf_list = [gpd.read_file(shp).to_crs("EPSG:3006") for shp in shp_files]
+        merged_gdf = gpd.GeoDataFrame(pd.concat(gdf_list, ignore_index=True), crs="EPSG:3006")
+        return merged_gdf
+
+    else:
+        raise ValueError(f"Path must be a .gdb or a directory with .shp files: {gdb_path}")
+
+lines = load_geodata(gdb_path)
+
+#%%
 
 
 polygon_fp = args.c
 
 peat_raster_fp = args.pr
+split_threshold = args.st
 
 # Load data
-polygons = gpd.read_file(f"zip://{polygon_fp}").to_crs("EPSG:3006").sort_values(by='Shape_Area').iloc[-139:].sort_values(by='Shape_Area', ascending= False)
-lines = gpd.read_file(gdb_path, layer=layer_name).to_crs("EPSG:3006")
+
+if polygon_fp.endswith('.zip'):
+    polygons = gpd.read_file(f"zip://{polygon_fp}").to_crs("EPSG:3006")
+    
+else:
+    polygons = gpd.read_file(polygon_fp).to_crs("EPSG:3006")
+
+
 
 
 #%%
@@ -278,11 +311,142 @@ lines = gpd.read_file(gdb_path, layer=layer_name).to_crs("EPSG:3006")
 import pandas as pd
 import time
 
+from pathlib import Path
+
+output_folder = Path(args.o)
+output_folder.mkdir(parents=True, exist_ok=True)
+
+output_st = os.path.join(output_folder, "peat_by_station")
+output_st = Path(output_st)
+output_st.mkdir(parents=True, exist_ok=True)
+
 for idx, polygon in polygons.iterrows():
     start_time = time.time()
-    process_catchment_v2(polygon, peat_raster_fp, lines, args.o, idx, crs = polygons.crs)
+    process_catchment_v2(polygon, peat_raster_fp, lines, output_st, idx, crs = polygons.crs, split_threshold=split_threshold)
     gc.collect()
 
     elapsed_time = time.time() - start_time
-    print(f"Processed mvm_id {polygon.get('mvm_id', idx)} in {elapsed_time:.2f} seconds.")
+    print(f"Processed id {polygon.get(id_var, idx)} in {elapsed_time:.2f} seconds.")
 
+#%%
+import os
+from pathlib import Path
+
+# output_folder = r"../test_results/dd_peat" 
+
+output_st = os.path.join(output_folder, "peat_by_station")
+output_st = Path(output_st)
+output_st.mkdir(parents=True, exist_ok=True)
+
+output_file = os.path.join(output_folder, "peat_ditches.csv")
+
+import pandas as pd
+
+q3 = os.listdir(output_st)
+q3
+#%%
+original_dir = os.getcwd()
+os.chdir(output_st)
+
+start = 0
+
+
+for file in q3:
+    if file.endswith(".csv"):
+        if start == 0 :
+            results = pd.read_csv(os.path.join( file))
+            results['file_name'] = file
+        else: 
+            df = pd.read_csv(os.path.join( file))
+            df['file_name'] = file
+            results= pd.concat([results, df])
+        start += 1
+
+
+os.chdir(original_dir)
+#%%
+
+results[id_var] = results[id_var].astype(str)
+
+# Step 1: Extract ID
+results[id_var] = results[id_var].str.extract(r'(\d+)', expand=False)
+
+# Step 2: Define percentage columns
+percent_cols = ['peat_pct_Vatten', 'peat_pct_Mineraljord', 'peat_pct_Torv_total']
+
+# ✅ Step 3: Convert percentages to decimals BEFORE multiplying
+results[percent_cols] = results[percent_cols] / 100
+
+# Step 4: Calculate weighted values
+for col in percent_cols:
+    results[f'{col}_weighted'] = results[col] * results['area_m2']
+
+# Step 5: Group and aggregate
+grouped = results.groupby(id_var).agg({
+    'total_ditch_length': 'sum',
+    'ditch_length_in_peat': 'sum',
+    'area_m2': 'sum',
+    'catch_area': 'first',  # assumes consistent per ID
+    **{f'{col}_weighted': 'sum' for col in percent_cols}
+})
+
+# Step 6: Compute final area-weighted percentages
+for col in percent_cols:
+    grouped[col] = grouped[f'{col}_weighted'] / grouped['catch_area']
+
+# Step 7: Convert back to percentages (0–100)
+grouped[percent_cols] = grouped[percent_cols] * 100
+
+# Step 8: Clean up
+grouped.drop(columns=[f'{col}_weighted' for col in percent_cols], inplace=True)
+grouped.reset_index(inplace=True)
+
+# Final result
+import numpy as np
+
+grouped["ditch_perc_peat"] = np.where(
+    (grouped['total_ditch_length'] == 0),
+    0,
+    (grouped['ditch_length_in_peat'] / grouped['total_ditch_length']) * 100
+)
+
+final = grouped.copy()
+
+
+############ ADD IN THE COLLECTION OF ALL OF IT BACK TOGETHER ###########
+########### SHOULD COME FROM COLLECT_SPLIT_VARS.PY  #####################
+
+#%%
+#%%
+import numpy as np
+
+mask = final['ditch_perc_peat'].isna()
+
+# First attempt: if ditch_perc_peat missing
+# then compute percent if total_ditch_length is zero => 0, else compute ratio
+final.loc[mask, 'ditch_perc_peat'] = np.where(
+    final.loc[mask, 'total_ditch_length'] == 0,
+    0,
+    (final.loc[mask, 'ditch_length_in_peat'] / final.loc[mask, 'total_ditch_length']) * 100
+)
+
+# Fallback logic: where still null (maybe due to division by zero or other anomalies)
+mask2 = final['ditch_perc_peat'].isna()
+final.loc[mask2, 'ditch_perc_peat'] = (
+    final.loc[mask2, 'ditch_length_in_peat'] / final.loc[mask2, 'total_ditch_length']
+) * 100
+#%%
+
+final['ditch_density_m_m2'] = final['total_ditch_length']/final['catch_area']
+
+
+df_final = final[[id_var, 'total_ditch_length',
+                   'ditch_perc_peat','ditch_density_m_m2',
+                     'peat_pct_Vatten',	'peat_pct_Mineraljord'	,
+                     'peat_pct_Torv_total']].copy()
+
+# df_final.drop_duplicates(subset=id_var, keep='first', inplace = True)
+
+# %%
+#file = r"/home/anlr0006/mnt/anna/My Documents/04_Projects/11_Lakes/01_data/03_processed_data/drivers/peat_ditches_all.csv"
+df_final.to_csv(output_file, index=False)
