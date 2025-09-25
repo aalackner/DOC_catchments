@@ -15,6 +15,9 @@ This repository includes the extractions various catchment characteristics withi
 |[Deposition](#deposition)|emep.py|monthly total N and S deposition for each catchment | EMEP MSC-W* |
 |[High coast and ecogegions](#high-coast-and-ecoregions)|High_coast_ecoregions.py|% of catchemnt below highest coast line and outlet ecoregion|highest coast line, Swedish ecoregions|
 |[Peat and Ditches](#peat-and-ditches)|dd_peat.py|ditch density, % peat|SLU ditch map, SLU peat map|
+|[NDVI](#ndvi)|ndvi.py|monthly summer NDVI timeseries|Landsat 8-Day NDVI composite*|
+|Runoff|||
+|Water chemistry|||
 
 *Download via API included in the script.   
 
@@ -208,7 +211,9 @@ python scripts/High_coast_ecoregions.py -hk "file/to/hk.shp"  -c "data/test.shp"
 
 ## Peat and ditches
 
-dd_peat.py
+*dd_peat.py*
+
+Alternatively if ditches and peat want to be looked at separately,  *ditches.py* and *peat_area.py* can be used but these rely on a [arcpy environment](https://pro.arcgis.com/en/pro-app/latest/arcpy/get-started/installing-arcpy.htm). 
 
 **args:** 
 - -d   vector version of the SLU ditch map, can be A .gdb with a layername or a folder with shapefiles that make up the entire dataset. 
