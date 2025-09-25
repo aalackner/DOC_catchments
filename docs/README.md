@@ -248,3 +248,43 @@ In the process a folder, *by_station*, will be created that stores the peat info
 ```bash
 python scripts/dd_peat.py -d "input/Dikeskarta/mosaic_ditches.gdb"  -c "path/to/catchments.shp" -pr "input\Torvkarta\Klassad_torvkarta\ClassifiedPeatMap.tif" -o  "path/to/results/folder/peat_ditches" -id "id" > "log/dd_peat_log.txt"
 ```
+
+## NDVI
+
+ndvi.py
+
+**args:** 
+
+- -c    catchment shapefile (can be .zip containing shapefile) 
+- -o    output folder
+- -id   id variable as str, default: "mvm_id"
+- -sy   start year as integer, default: 1990
+- -ey   end year as integer, default: 2024
+- -log  log folder, default: log
+
+
+
+
+
+### Dependencies:
+
+ee, geemap, logging, geopandas 
+
+
+### Input: 
+
+There is no additional input needed except for the catchments. However, this script relies on google earth engione so you will need to authenticate your google earth engine account, and create a project 'ndvi-omdrev' as that is what gets initialized. 
+
+The script uses google earth engine to get the preprocessed NDVI data from [LANDSAT/COMPOSITES/C02/T1_L2_8DAY_NDVI](https://developers.google.com/earth-engine/datasets/catalog/LANDSAT_COMPOSITES_C02_T1_L2_8DAY_NDVI). This was choosen as it has the longest time series covering Sweden.
+
+
+### Output: 
+
+In the output folder a csv for each id: NDVI_{id}.csv with a timeseries of monthly min, max, median NDVI for the summer months (May to Oktober).  
+
+
+### Example
+
+```bash
+python scripts/ndvi.py  -c "data/test.shp"  -o  "test_results/ndvi" -id "id" -sy 1996 -ey 1998
+```

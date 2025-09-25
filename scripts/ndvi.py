@@ -1,3 +1,29 @@
+#%% Only needed if used from terminal, otherwise the first block needs to be commented out
+import argparse
+from pathlib import Path
+import os
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-c", type=str, help="the catchments")
+parser.add_argument("-o", type=str, help="the output folder")
+parser.add_argument("-id", type=str, help="the id variable", default="mvm_id")
+parser.add_argument("-log", type=str, help="log file", default="log")
+parser.add_argument("-sy", type=int, help="start year", default=1990)
+parser.add_argument("-ey", type=int, help="end year", default=2024)
+args = parser.parse_args()
+
+id_var = args.id
+output_folder = args.o
+cats_file = args.c
+
+sy = args.sy
+ey = args.ey
+
+# Get the directory part of the log file path
+log_dir = Path(args.log)
+# Create the directory if it doesn't exist
+log_dir.mkdir(parents=True, exist_ok=True)
+
 #%% start logging 
 from datetime import datetime
 import logging
@@ -5,7 +31,7 @@ import sys
 
 current_datetime = datetime.now().strftime("%Y_%m_%d")
 str_current_datetime = str(current_datetime)
-log_name =  "..\\logs\\log_NDVI_"+str_current_datetime+".txt"
+log_name =  os.path.join(log_dir, "log_NDVI_"+str_current_datetime+".txt")
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     handlers=[
@@ -13,6 +39,7 @@ logging.basicConfig(level=logging.INFO,
                         logging.StreamHandler()
                     ])
 
+#%%
 
 #%% connect to google earth engine
 
@@ -22,28 +49,24 @@ import geemap
 ee.Authenticate(auth_mode='localhost')
 geemap.ee_initialize(project='ndvi-omdrev')
 print(ee.String('Hello from the Earth Engine servers!').getInfo())
-
 #%% acess shapefiles to be used
 
 import os
 import pandas as pd
 import geopandas as gpd
 
-mvm_false = pd.read_csv("\\\\storage.slu.se\\Home$\\anlr0006\\My Documents\\04_Projects\\11_Lakes\\02_notes\\false_catchments.csv")
 
-zip_catch = "..\\shapefiles\\aro_omdrevsjöar_6194_250626\\aro_omdrevsjöar_6194_250626.shp"
+if cats_file.endswith('.zip'):
+    gdf_catch = gpd.read_file(f"zip://{cats_file}").to_crs("EPSG:4326")    
+else:
+    gdf_catch = gpd.read_file(cats_file).to_crs("EPSG:4326")
 
-
-# Load the shapefiles from the ZIP files
-gdf_catch = gpd.read_file(zip_catch).rename(columns={"mvmid":"mvm_id"})
-gdf_catch = gdf_catch.loc[gdf_catch['mvm_id'].isin(mvm_false['mvm_id']) == False]
-
-gdf_catch.to_crs(epsg=4326, inplace=True)
+# gdf_catch.to_crs(epsg=4326, inplace=True)
 
 
 
 
-logging.info("Loaded %d catchment polygons from %s", len(gdf_catch), zip_catch)
+logging.info("Loaded %d catchment polygons from %s", len(gdf_catch), cats_file)
 
 
 #%%
@@ -64,7 +87,7 @@ def get_last_day_of_month(year, month):
 # Function to convert GeoDataFrame row to Earth Engine FeatureCollection
 def geo_to_ee(gdf_row):
     geometry = gdf_row.geometry
-    mvm_id = gdf_row['mvm_id']
+    id = gdf_row[id_var]
     if geometry.geom_type == 'Polygon':
         ee_geom = ee.Geometry.Polygon(list(geometry.exterior.coords))
     elif geometry.geom_type == 'MultiPolygon':
@@ -75,18 +98,18 @@ def geo_to_ee(gdf_row):
     else:
         logging.error('Unsupported geometry %s',str(geometry.geom_type) )
         raise ValueError(f"Unsupported geometry type: {geometry.geom_type}")
-    return ee.FeatureCollection([ee.Feature(ee_geom).set('mvm_id', mvm_id)])
+    return ee.FeatureCollection([ee.Feature(ee_geom).set(id_var, id)])
 
-# Function to compute NDVI statistics for a specific mvm_id
-def process_mvm_id(gdf_row, years, months, Landsat_NDVI, output_dir):
-    mvm_id = gdf_row['mvm_id']
-    output_path = os.path.join(output_dir, f"NDVI_{mvm_id}.csv")
+# Function to compute NDVI statistics for a specific id
+def process_id(gdf_row, years, months, Landsat_NDVI, output_dir):
+    id = gdf_row[id_var]
+    output_path = os.path.join(output_dir, f"NDVI_{id}.csv")
 
     if os.path.exists(output_path):
-        logging.info("File %s already exists and is not empty. Skipping mvm_id: %s", output_path, mvm_id)
+        logging.info("File %s already exists and is not empty. Skipping id: %s", output_path, id)
         return
     
-    logging.info(f"Processing mvm_id: {mvm_id}")
+    logging.info(f"Processing id: {id}")
     # Create (or touch) the output_path file so it exists, will be overwritten later
     with open(output_path, 'w') as f:
         pass
@@ -149,34 +172,34 @@ def process_mvm_id(gdf_row, years, months, Landsat_NDVI, output_dir):
                         rows.append({
                             'month': month,
                             'year': year,
-                            'mvm_id': mvm_id,
+                            'id': id,
                             'NDVI_min': min_info['features'][i]['properties'].get('min', None),
                             'NDVI_median': median_info['features'][i]['properties'].get('mean', None),
                             'NDVI_max': max_info['features'][i]['properties'].get('mean', None),
                         })
             except Exception as e:
-                    logging.error("Error processing stats for mvm_id {%s} (%s-%s): %s", str(mvm_id), str(year), str(month), e)
+                    logging.error("Error processing stats for id {%s} (%s-%s): %s", str(id), str(year), str(month), e)
     
     if rows:
         pd.DataFrame(rows).to_csv(output_path, index=False)
-        logging.info(f"Saved results for mvm_id %s to %s", str(mvm_id), output_path)
+        logging.info(f"Saved results for id %s to %s", str(id), output_path)
     else:
-        logging.info("No valid NDVI data found for mvm_id %s.", str(mvm_id))
+        logging.info("No valid NDVI data found for id %s.", str(id))
 
 # Main processing loop
 def main():
-    output_dir = "\\\\storage.slu.se\\Home$\\anlr0006\\My Documents\\04_Projects\\11_Lakes\\01_data\\02_raw_data\\NDVI"
+    output_dir = output_folder
     os.makedirs(output_dir, exist_ok=True)
     
     months = [  "05", "06", "07", "08", "09", "10"]
-    years = list(range(2000, 2025))
+    years = list(range(sy, ey))
     Landsat_NDVI = ee.ImageCollection('LANDSAT/COMPOSITES/C02/T1_L2_8DAY_NDVI')
     
     for idx, gdf_row in gdf_catch.iterrows():
         try:
-            process_mvm_id(gdf_row, years, months, Landsat_NDVI, output_dir)
+            process_id(gdf_row, years, months, Landsat_NDVI, output_dir)
         except Exception as e:
-            logging.error("Error processing mvm_id %s: %s", str(gdf_row['mvm_id']), e)
+            logging.error("Error processing id %s: %s", str(gdf_row[id_var]), e)
 
 if __name__ == "__main__":
     main()
