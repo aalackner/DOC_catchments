@@ -380,6 +380,39 @@ python scripts/discharge.py  -c "data/test.shp"  -o  "test_results/runoff" -id "
 
 ## Water Chemistry
 
+get_water_chem.r
 
+**args**
+
+In this file you will need to go into the script and set the paths and token manually. 
+
+**Dependencies:**
+
+jsonlite, tidyverse, sf (only if ids come from shapefile)
+
+**Input:** 
+
+There are two paths to change in the R script: 
+
+1. The folder to use to place the results including intermediate steps. 
+2. Where to take the ids from. These need to be the MVM database station ids.
+
+
+
+**Output:** 
+
+There are some intermediary folders that contain the data for individual stations. These are to prevent the need to recall the API, if you hadd stations. 
+
+The main output is 'water_chem_combined.csv', a csv containing water chemistry samples between 1970 and 2025. 
+
+
+**Example:**
+
+```bash
+Rscript scripts/get_water_chem.r >> log/chem.log
+```
 
 ## Compilation
+
+
+

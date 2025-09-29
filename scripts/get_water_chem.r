@@ -8,7 +8,7 @@ library(sf)
 
 ## first we load the list of mvm_ids
 
-mvm_ids <- st_read( "/home/anlr0006/mnt/anna/My Documents/04_Projects/11_Lakes/01_data/02_raw_data/catchments/aro_trendsjöar_130_250703/aro_trendsjöar_130_250703.shp")$mvmid
+mvm_ids <- st_read( "data/test.shp")$id
 
 
 
@@ -18,7 +18,26 @@ my.token <- "PUJD93023KAS943HD"
 
 
 
-folder <- "/home/anlr0006/mnt/anna/My Documents/04_Projects/11_Lakes/01_data/02_raw_data/chemistry/"
+folder <- "test_results/chemistry"
+
+# Check and create main folder
+if (!dir.exists(folder)) {
+  dir.create(folder, recursive = TRUE)
+}
+
+# Create subfolders JSON and CSV inside it
+json_folder <- file.path(folder, "JSON")
+csv_folder  <- file.path(folder, "CSV")
+
+if (!dir.exists(json_folder)) {
+  dir.create(json_folder)
+}
+
+if (!dir.exists(csv_folder)) {
+  dir.create(csv_folder)
+}
+
+
 
 fail_table <- data.frame(
   mvm_id = integer(),
@@ -32,15 +51,14 @@ overview <- data.frame(
   stringsAsFactors = FALSE
 )
 
-# mvm_ids <- c("1280")
 
 ## Now we loop through all the mvm_ids accessing the json file, saving the raw json in case I need to ever access the metadata. And then moving on to saving it as a csv per station.
 
 for (id in mvm_ids){
   
-  full.samples <- get_samples(folder, id)
-  full.samples <- fromJSON(paste0(folder,"JSON_pre/" ,id, ".JSON"))
-  csv.path <- paste0(folder, "CSV_pre/", id, ".csv" )
+  full.samples <- get_samples(folder, id) # Only needed if JSON has never been downloaded
+  # full.samples <- fromJSON(file.path(folder, "JSON", paste0(id, ".JSON")))
+  csv.path <- file.path(folder, "CSV", paste0(id, ".csv"))
   
   
   ## run the JSON through the functions combine_col and into_table to generate a single csv file for each station.
@@ -56,10 +74,10 @@ fail_table %>% write.csv(., file = 'fails.csv')
 
 overview %>% write.csv(., file = 'overview.csv')
 
-folder.csv <- paste0(folder, "CSV_pre")
+
 
 #  List all files in the folder
-files_in_folder <- list.files(path = folder.csv, full.names = TRUE)
+files_in_folder <- list.files(path = csv_folder, full.names = TRUE)
 
 # Filter for .csv files
 csv_files <- files_in_folder %>%
@@ -68,4 +86,4 @@ csv_files <- files_in_folder %>%
 # Step 3: Read and bind all .csv files into a single tibble
 csv_files %>%
   map_dfr(~ read_csv(.x, col_types = cols(.default = "c"))) %>% 
-  write.csv(.,file = paste0(folder, 'water_chem_combined_catchments_pre_2025.csv' ))
+  write.csv(.,file = file.path(folder, "chem_combined.csv"), row.names = FALSE)

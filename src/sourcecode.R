@@ -70,89 +70,6 @@ into_table <- function(full.samples){
   return(table)
 }
 
-combine_col <- function (data){
-  ########## Sulfate  ##################
-  
-  ## add in other units when they are applicable and then coalessce through them 
-  cols <- c("SO4_IC_mekvl", "SO4_IC_mgl SO4")
-  
-  # Check and add columns if they do not exist
-  for (col in cols) {
-    if (!col %in% names(data)) {
-      data[[col]] <- NA  # Add the column with NA values
-    }
-  }
-  
-  data %>% mutate (SO4_M = coalesce(
-    (SO4_IC_mekvl/2)/1000,
-    `SO4_IC_mgl SO4` / ((32+ 4*16)*1000) 
-  )) %>% select(-all_of(cols)) -> data
-  
-  ############## NO3 ###################
-  
-  cols <- c("NO2_NO3_N_µgl", "NO3_N_µgl")
-  
-  # Check and add columns if they do not exist
-  for (col in cols) {
-    if (!col %in% names(data)) {
-      data[[col]] <- NA  # Add the column with NA values
-    }
-  }
-  data %>% mutate (NO3_M = coalesce(
-    (NO2_NO3_N_µgl)/(14.01*1000000),
-    (NO3_N_µgl)/(14.01*1000000)))  %>% select(-all_of(cols)) -> data
-  
-  ############# cations & anions ##########################
-  
-  ## add in other units when they are applicable and then coalessce through them 
-  
-  cols <- c("K_mekvl", "K_mgl", "Ca_mekvl", "Ca_mgl", "Cl_mekvl", "Si_mgl", "Cl_mgl", "Na_mekvl", "Na_mgl","Fluorid_mgl", "Fluorid_mekvl", "Fe_µgl", "Mg_mekvl", "Mg_mgl", "NH4_N_µgl" )
-  
-  # Check and add columns if they do not exist
-  for (col in cols) {
-    if (!col %in% names(data)) {
-      data[[col]] <- NA  # Add the column with NA values
-    }
-  }
-  
-  
-  data %>% mutate (
-    Cl_M = coalesce(
-      Cl_mgl/(35.45 * 1000),
-      Cl_mekvl/1000
-    ),
-    K_M = coalesce(
-      K_mgl/(39.10 * 1000),
-      K_mekvl/1000
-    ), 
-    Ca_M = coalesce(
-      Ca_mgl/(40.08 * 1000),
-      (Ca_mekvl/1000)/2
-    ),
-    Na_M = coalesce(
-      Na_mgl/(35.45 * 1000),
-      Na_mekvl/1000
-    ),
-    Mg_M = coalesce(
-      Mg_mgl/(24.31 * 1000),
-      (Mg_mekvl/1000)/2
-    ),
-    Fe_M = coalesce(
-      Fe_µgl/(55.85 * 1000000)),
-    Si_M = coalesce(
-      Si_mgl/(28.09 * 1000)
-    ),
-    NH4_M = coalesce(
-      NH4_N_µgl/(14.01*1000000)
-    ),
-    F_M = coalesce(
-      Fluorid_mgl/(19.00 * 1000),
-      Fluorid_mekvl/1000
-    )) %>% select(-all_of(cols)) -> data
-  
-  return(data)
-}
-
 
 combine_dates <- function(data) {
   n_old <- data%>% nrow()
@@ -180,7 +97,7 @@ process_samples <- function(full.samples, csv.path, id) {
       into_table(.) %>% 
       combine_dates(.) %>% 
       # combine_col(.) %>%
-      write.csv(., file = csv.path)
+      write.csv(., file = csv.path, row.names = FALSE)
     
   }, error = function(e) {
     # Step 3: If an error occurs, add the id and error message to the fail_table
@@ -193,9 +110,11 @@ get_samples <- function(folder, id) {
   
   # Try the operation and catch errors
   tryCatch({
+    # print(my.token)
+    # print(id)
     # Step 2: Define the pipeline (assuming into_table() and combine_col() are defined elsewhere)
-    url.call <- paste0('https://miljodata.slu.se/api/observations-service/v2/full-samples/query?token=', my.token, '&stationIds=', id, '&fromYear=1970&toYear=1991&productType=Chemistry')
-    json.path <- paste0(folder, "JSON_pre/", id, ".json" )
+    url.call <- paste0('https://miljodata.slu.se/api/observations-service/v2/full-samples/query?token=', my.token, '&stationIds=', id, '&fromYear=1970&toYear=2024&productType=Chemistry')
+    json.path <-  file.path(folder, "JSON", paste0(id, ".JSON"))
     
     full.samples<-fromJSON(url.call)
     
