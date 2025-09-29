@@ -16,8 +16,9 @@ This repository includes the extractions various catchment characteristics withi
 |[High coast and ecogegions](#high-coast-and-ecoregions)|High_coast_ecoregions.py|% of catchemnt below highest coast line and outlet ecoregion|highest coast line, Swedish ecoregions|
 |[Peat and Ditches](#peat-and-ditches)|dd_peat.py|ditch density, % peat|SLU ditch map, SLU peat map|
 |[NDVI](#ndvi)|ndvi.py|monthly summer NDVI timeseries|Landsat 8-Day NDVI composite*|
-|Runoff|||
-|Water chemistry|||
+|[Runoff](#runoff)|||
+|[Water chemistry](#water-chemistry)|||
+|[Compilation](#compilation)|||
 
 *Download via API included in the script.   
 
@@ -291,3 +292,94 @@ In the output folder a csv for each id: NDVI_{id}.csv with a timeseries of month
 ```bash
 python scripts/ndvi.py  -c "data/test.shp"  -o  "test_results/ndvi" -id "id" -sy 1996 -ey 1998
 ```
+
+## Runoff
+
+To get runoff for each catchment, it is necessary to complete three seperate steps: First use get_SVARO_id.py to generate ARO_UUID ids that can then be entered into [NADIA](https://vattenwebb.smhi.se/nadia/) to download the discharge needed for discharge.py to generate runoff for each catchment based on [SMHI's S-HYPE data](https://www.smhi.se/data/sjoar-och-vattendrag/vattenwebb/om-tjanster-i-vattenwebb/data-for-delavrinningsomraden---sotvatten). 
+
+get_SVARO_id.py > NADIA (manually) > discharge.py
+
+### get_SVARO_id.py
+
+**args:** 
+
+- -c    catchment shapefile (can be .zip containing shapefile) 
+- -o    output folder
+- -svaro svaro delavrinningsområde file .shp or .zip, if path is given that does not yet exist, file will be downloaded from SMHI as .zip.
+- -id   id variable as str, default: "mvm_id"
+- -x    column name in shapefile of catchments for x coordinate of outlet 
+- -y    column name in shapefile of catchments for y coordinate of outlet
+- -map "true" or "false" to indicate whether a map should be made of the catchments and their corresponding SVARO catchment
+
+**Dependencies:**
+
+geopandas
+
+
+**Input:** 
+
+SVAR2022 delavrinnings område should be provided, or a empty .zip path needs to be given to which the script downloads the .zip of the SVAR2022 sub-catchemnts. These subcatchemnts can also be downloaded directly from [SMHI'website](https://www.smhi.se/data/sok-oppna-data-i-utforskaren/se-hy-delavrinningsomraden-svar2022). 
+
+
+**Output:** 
+
+
+There are three outputs from this script: 
+
+ARO_UUID.txt: a textfile with all the ARO_UUID ids. The content of this file should be copy and pasted into NADIA for download of S-HYPE data. 
+
+cats_svar2022.feather: a feather, that is needed in combination with the NADIA output, as input for discharge.py to generate station weighted runoff for each catchment. 
+
+catchments_svar.html: A map of the catchemnts, stations, and corresponding SVAR2022 catchemnt. This output is optional and can be controlled with -map. 
+
+
+**Example:**
+
+```bash
+python scripts/get_SVARO_id.py  -c "data/test.shp"  -o  "test_results/runoff" -id "id" -svaro "input\SMHI\SVAR2022_delavrinningsomraden.zip" -map "true"
+```
+
+### NADIA
+
+Using NADIA is necessary to go on with calculating runoff for each catchment. Follow the below steps before running discharge.py:
+
+1. go to [NADIA](https://vattenwebb.smhi.se/nadia/)
+2. copy and paste the content of ARO_UUID.txt into the text box provided. 
+3. select Tidsteg: dygn and the time range in which you're interrested
+4. Download the data by clicking: 'skicka'
+5. save the downloaded .csv file and use it as input for discharge.py
+
+### discharge.py
+
+**args:** 
+
+- -o    output folder (same as get_SVARO_id.py) 
+- -id   id variable as str, default: "mvm_id"
+- -f    filename of nadia output, should be placed inside -o, default: "2025-data.csv" 
+
+**Dependencies:**
+
+geopandas, re, pandas
+
+**Input:** 
+
+Output of [get_SVARO_id.py](#get_svaro_idpy), cats_svaro.feather, and [NADIA](#nadia) output in output folder.  
+
+
+**Output:** 
+
+The final output for this script is daily_discharge.csv, a csv with daily modelled discharge for the catchment, including model uncertainty for the corresponding SMHI sub-catchemnt (Subid). 
+
+
+**Example:**
+
+```bash
+python scripts/discharge.py  -c "data/test.shp"  -o  "test_results/runoff" -id "id" -f "2025-data.csv"
+```
+
+
+## Water Chemistry
+
+
+
+## Compilation

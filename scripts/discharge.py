@@ -1,33 +1,38 @@
 #%%
+import argparse
+parser = argparse.ArgumentParser()
+# parser.add_argument("-c", type=str, help="the catchments either as .zip containing shp  or shp file")
+parser.add_argument("-o", type=str, help="the output folder, for ids and .feather used in discharge.py")
+parser.add_argument("-id", type=str, default = 'mvmid' ,help="the unique id column in the catchment shapefile")
+parser.add_argument("-f", type=str, default = "2025-data.csv", help="file name of the NADIA output")
+
+args = parser.parse_args()
+# file_catch = args.c
+output_folder = args.o
+id_var = args.id
+file_nadia = args.f
+#%%
+import geopandas as gpd
+
+# file_catch = "../data/test.shp"
+# output_folder = "../test_results/runoff"
+# x_coord = "x_utlopp"
+# y_coord = "y_utlopp"
+# id_var = "id"
+# file_nadia = "2025-data.csv"
+# file_map = "true"
+
+#%%
 import geopandas as gpd
 import os
 
+feather_path = os.path.join(output_folder, "cats_svaro.feather")
 #os.chdir("..")
 # load catchments
-gdf_catch = gpd.read_feather("results\\SVAR\\catch_316_ARO.feather")
-
-# %%
-# extract just the stations from the catchments
-# stations = gdf_catch[['lat','lon','mvm_id', 'Shape_Area']]
-
-# %%
-import geopandas as gpd
-from shapely.geometry import Point
-import matplotlib.pyplot as plt
+gdf_catch = gpd.read_feather(feather_path)
 
 
 
-# Create GeoDataFrame from stations using SWEREF coordinates
-gdf = gpd.GeoDataFrame(
-    stations,
-    geometry=gpd.points_from_xy(stations["lon"], stations["lat"]),
-    crs="EPSG:3006"  # SWEREF 99 TM
-)
-# %%
-# # Load SVARO ID's to get upstream area added to the stations and call it gdf
-# svaro = gpd.read_file("results/SVARO/aro.gpkg").to_crs("EPSG:3006")
-# gdf = gpd.sjoin(gdf, svaro[['ARO_UUID', 'geometry', 'AREA', 'AREA_UPSTREAM']], how='left', predicate='within').drop(columns=['index_right'])
-# gdf
 #%%
 import pandas as pd
 # Calculate the weight for the area weighted discharge 
@@ -36,13 +41,15 @@ gdf_catch['weight'] = gdf_catch['area_m2']/gdf_catch['AREA_UPSTREAM']
 #calculate the lokal weight: if this values is => 1 than the lokal vattenfö.. should be used
 gdf_catch['weight_lokal'] = gdf_catch['area_m2']/gdf_catch['AREA'] 
 gdf_catch
-#gdf.loc[gdf['weight'] < 0.1][['AU_CD', 'mvm_id', 'area_svaro', 'Shape_Area', 'weight', 'lokal_area', 'weight_lokal', 'antal_poly']]
+#gdf.loc[gdf['weight'] < 0.1][['AU_CD', id_var, 'area_svaro', 'Shape_Area', 'weight', 'lokal_area', 'weight_lokal', 'antal_poly']]
 #%%
 # Define the input, filtered output, and remaining output file paths
-input_file = "\\\\storage.slu.se\\Home$\\anlr0006\\My Documents\\04_Projects\\02_Top-Down\\01_data\\02_raw_data\\02_SMHI\\1991-SMHI_catch_316.csv"
-removed_file = 'results/SVAR/S-HYPE_uncertainty_catch_316.txt'
-remaining_file = 'results/SVAR/SVARO_discharge_catch_316.csv'
+input_file = os.path.join(output_folder, file_nadia)
 
+
+removed_file = os.path.join(output_folder, 'SVAR/S-HYPE_uncertainty.txt')
+remaining_file = os.path.join(output_folder, 'SVAR/SVARO_discharge.csv')
+#%%
 # Ensure the directory exists for the output files
 os.makedirs(os.path.dirname(removed_file), exist_ok=True)
 os.makedirs(os.path.dirname(remaining_file), exist_ok=True)
@@ -79,39 +86,78 @@ svaro_discharge = pd.read_csv(remaining_file, sep = ";", decimal= ",", parse_dat
 svaro_discharge.rename(columns={'Datum' : 'date'}, inplace=True)
 #%%
 
+import pandas as pd
+import re
+
+# Path to your txt file
+
+# Pattern to extract the needed values
+pattern = re.compile(
+    r"Modellosäkerhet (\d+\.?\d*)% och (\d+\.?\d*)% .*?subid (\d+), MQ (\d+\.?\d*)"
+)
+
+# Store parsed rows
+rows = []
+
+# Read and parse file
+with open(removed_file, "r", encoding="utf-8") as f:
+    for line in f:
+        match = pattern.search(line)
+        if match:
+            perc1, perc2, subid, mq = match.groups()
+            rows.append({
+                "subid": int(subid),
+                "MQ": float(mq),
+                "model_uncertainty": float(perc1),
+                "model_uncertainty_station_corrected": float(perc2)
+            })
+
+# Convert to DataFrame
+uncertainty = pd.DataFrame(rows)
+
+# Show table
+# uncertainty
+
+#%%
 # Find the discharge
 pd.options.mode.chained_assignment = None  # default='warn'
 
-discharge = pd.DataFrame(columns=['mvm_id', 'date', 'q', 'area_m2'])
-mvm_ids = gdf_catch['mvm_id'].unique()
+discharge = pd.DataFrame(columns=[id_var, 'date', 'q', 'Subid'])
+mvm_ids = gdf_catch[id_var].unique()
 for id in mvm_ids:
-    aroid = gdf_catch.loc[gdf_catch['mvm_id']== id]['ARO_UUID'].values[0]
-    lokal_area = gdf_catch.loc[gdf_catch['mvm_id']== id]['AREA'].values[0]
-    area = gdf_catch.loc[gdf_catch['mvm_id']== id]['area_m2'].values[0]
+    aroid = gdf_catch.loc[gdf_catch[id_var]== id]['ARO_UUID'].values[0]
+    lokal_area = gdf_catch.loc[gdf_catch[id_var]== id]['AREA'].values[0]
+    area = gdf_catch.loc[gdf_catch[id_var]== id]['area_m2'].values[0]
     local_q = svaro_discharge.loc[svaro_discharge['Aroid'] == aroid]
-    local_q['mvm_id'] = id
+    local_q[id_var] = id
     local_q['area_m2'] = area
-    weight = gdf_catch.loc[gdf_catch['mvm_id']== id]['weight'].values[0]
-    # lokal_weight = gdf_catch.loc[gdf_catch['mvm_id']== id]['weight_lokal'].values[0]
+    weight = gdf_catch.loc[gdf_catch[id_var]== id]['weight'].values[0]
+    # lokal_weight = gdf_catch.loc[gdf_catch[id_var]== id]['weight_lokal'].values[0]
     if (lokal_area > area) & ( weight < 0.1) :
         # print(id)
-        weight = gdf_catch.loc[gdf_catch['mvm_id']== id]['weight_lokal'].values[0]
+        weight = gdf_catch.loc[gdf_catch[id_var]== id]['weight_lokal'].values[0]
         local_q.loc[:,'q'] = local_q.loc[:,'Lokal vattenföring'] * weight
     else:
         local_q.loc[:,'q'] = local_q.loc[:,'Total stationskorrigerad vattenföring'] * weight
-    discharge = pd.concat([discharge, local_q[['mvm_id', 'date','q']]])
-discharge.describe()
+    discharge = pd.concat([discharge, local_q[[id_var, 'date','q', 'Subid']]])
 
+
+discharge = discharge.merge(
+    uncertainty.rename(columns={'subid': 'Subid'})
+               .drop(columns=['model_uncertainty', 'MQ']),
+    on='Subid',
+    how='left'
+)
 #%% check for duplicates
 
-duplicates = discharge[discharge.duplicated(subset=['mvm_id', 'date'], keep=False)]
-duplicates
+duplicates = discharge[discharge.duplicated(subset=[id_var, 'date'], keep=False)]
+
 # %%
 # Ensure the directory exists
+
 import os
-os.makedirs("results/discharge", exist_ok=True)
 
-discharge.to_csv("results/discharge/daily_discharge_catch_316.csv", index = False)
-
+out_file = os.path.join(output_folder, "daily_discharge.csv")
+discharge.to_csv(out_file, index = False)
 
 # %%
