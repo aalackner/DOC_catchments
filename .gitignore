@@ -170,6 +170,9 @@ results/
 Results/
 logs/
 Logs/
+corrected/
+corrections_results/
+test_results/
 
 # Ignore snakemake 
 
@@ -191,3 +194,9 @@ arcpy_env/
 
 *.out
 .vscode/settings.json
+
+*.RDataTmp
+*.Rhistory
+*.RData
+
+trial.py

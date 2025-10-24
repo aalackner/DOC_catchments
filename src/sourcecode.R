@@ -94,10 +94,10 @@ process_samples <- function(full.samples, csv.path, id) {
     overview <<- rbind(overview, data.frame(mvm_id = id, comment = length(full.samples$samples$sampleId)))
     # Step 2: Define the pipeline (assuming into_table() and combine_col() are defined elsewhere)
     full.samples %>%
-      into_table(.) %>% 
-      combine_dates(.) %>% 
+      into_table() %>% 
+      # combine_dates() %>% 
       # combine_col(.) %>%
-      write.csv(., file = csv.path, row.names = FALSE)
+      write.csv( file = csv.path, row.names = FALSE)
     
   }, error = function(e) {
     # Step 3: If an error occurs, add the id and error message to the fail_table
@@ -119,7 +119,7 @@ get_samples <- function(folder, id) {
     full.samples<-fromJSON(url.call)
     
     ## Write as json to the folder
-    # write(toJSON(full.samples), file = json.path)
+    write(toJSON(full.samples), file = json.path)
     
     return(full.samples)
   }, error = function(e) {
