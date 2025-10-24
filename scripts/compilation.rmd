@@ -1,0 +1,1575 @@
+
+
+## File names
+
+
+```{r load libraries}
+library(tidyverse)
+library(readxl)
+
+setwd(r"(C:\Users\anlr0006\repos-win\DOC_catchments)")
+
+####################### Input ##################################
+
+file_shp <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\01_data\02_raw_data\catchments\corrected_merged\corrected_merged.shp)" # replace with your location of catchment files
+
+# Chemistry
+file_chemistry <- r"(C:\Users\anlr0006\repos-win\DOC_catchments\test_results\chemistry\chem_combined.csv)" # change to your chem combined file, the output of get_water_chem.r
+file_chemistry_processed <-r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\01_data\03_processed_data\chemistry\water_chem_all_2025.csv)"   # replace with your location of your processed water chem file (will be created in below chunk)
+
+# Climate
+folder_climate =  "\\\\storage.slu.se\\Home$\\anlr0006\\My Documents\\04_Projects\\11_Lakes\\01_data\\03_processed_data\\inter_climate"
+file_climate_processed <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\etc\climate_merged.csv)"
+
+# Spatial Mapped Data
+NMD_file1 <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\01_data\02_raw_data\NMD\all_outputs_trend_and_survey_lakes.xlsx)"
+NMD_file2 <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\01_data\01_received\all_outputs_LakeSurvey_aro251001.xlsx)"
+file_HK <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\etc\high_coast_ecoregions_merged.csv)"
+
+# Discharge
+file_discharge.omdrev <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\etc\omdrev_discharge.csv)"
+file_discharge.trend <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\etc\trendlakes_discharge.csv)"
+file_discharge.combined <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\etc\discharge_merged.csv)"
+
+# Deposition EMEP
+emep_file.1 <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\etc\emep_trend.csv)"
+emep_file.2 <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\etc\\emep_omdrev.csv)"
+
+# NDVI
+
+folder_NDVI <-  r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\01_data\02_raw_data\NDVI)"
+file_NDVI <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\etc\NDVI_merged.csv)"
+
+# Peat and ditches
+file_peat <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\etc\peat_ditches.csv)"
+
+# Soil depth
+soil_depth_file <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\etc\soil_depth.csv)"
+
+
+############################ RESULTS ##########################################
+
+# Chemistry Time series
+
+file_chemistry.sls <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\chemistry_SLS.csv)" 
+
+file_chemistry.trend <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\chemistry_trend.csv)"
+
+
+# Drivers
+
+file_drivers.sls <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\characteristics_sls.csv)" 
+
+file_drivers.trend <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\characteristics_trend.csv)" 
+
+```
+
+## Functions
+
+These functions below are used further along the script to calculate catchment charcetristics
+```{r}
+get_mean_or_first_pre2018 <- function(data, var, date_var = "sampling_date") {
+  start_period <- filter(data, year >= 2008, year <= 2012)
+  val <- mean(start_period[[var]], na.rm = TRUE)
+  
+  if (is.na(val)) {
+    pre2018 <- data %>%
+      filter(year(.data[[date_var]]) < 2018 & !is.na(.data[[var]])) %>%
+      arrange(.data[[date_var]]) %>%
+      slice(1)
+    
+    if (nrow(pre2018) == 1) {
+      return(pre2018[[var]])
+    } else {
+      return(NA)
+    }
+  } else {
+    return(val)
+  }
+}
+
+get_variable_change <- function(df, varname) {
+  # Ensure date column exists and is of Date type
+  if (!"sampling_date" %in% colnames(df)) stop("Date column not found")
+  
+  df <- df[!is.na(df[[varname]]), ]  # Remove NA values in the variable column
+  
+  # Filter first observation after 2012
+  df_after_2012 <- df[df$sampling_date > as.Date("2012-12-31"), ]
+  first_after_2012 <- df_after_2012[order(df_after_2012$sampling_date), ][1, ]
+  
+  # Filter first observation before 2025
+  df_before_2025 <- df[df$sampling_date < as.Date("2025-01-01"), ]
+  last_before_2025 <- df_before_2025[order(df_before_2025$sampling_date, decreasing = TRUE), ][1, ]
+  
+  # Check if we have both observations
+  if (nrow(first_after_2012) == 0 || nrow(last_before_2025) == 0) {
+    return(NA)  # Not enough data to compute change
+  }
+  
+  delta_years <- year(last_before_2025$sampling_date) - year(first_after_2012$sampling_date)
+  
+  delta_value <- last_before_2025[[varname]] - first_after_2012[[varname]]
+  
+  # Ensure delta_years is valid
+  if (is.na(delta_years)) {
+   # warning("delta_years is NA – returning NA")
+    return(NA_real_)
+  }
+  
+  if (delta_years == 0) {
+   # warning("delta_years is zero – returning NA")
+    return(NA_real_)
+  }
+  
+  return(delta_value / delta_years)
+}
+
+theil_sen_slope <- function(x, y) {
+  df <- data.frame(x = as.numeric(x), y = y)
+  if (nrow(df) < 2 || all(is.na(df$y))) return(NA)
+  model <- mblm(y ~ x, data = df, repeated = FALSE)
+  coef(model)[2]
+}
+
+# Function to compute 0.75 * IQR / median
+robust_variation <- function(x) {
+  if (median(x, na.rm = TRUE) == 0) return(NA)
+  0.75 * IQR(x, na.rm = TRUE) / median(x, na.rm = TRUE)
+}
+
+library(rlang)
+
+slope_or_na <- function(column_name, data) {
+  # Make sure the column exists
+  if (!column_name %in% names(data)) return(NA_real_)
+  
+  # Filter out rows where y (the column) OR x (year) is NA
+  df <- data %>%
+    select(year, all_of(column_name)) %>%
+    drop_na()
+  
+  # Only compute if there are at least 10 non-NA rows
+  if (nrow(df) < 10) return(NA_real_)
+  
+  # Fit Theil-Sen slope
+  model <- try(mblm::mblm(as.formula(paste(column_name, "~ year")), data = df), silent = TRUE)
+  
+  if (inherits(model, "try-error")) return(NA_real_)
+  
+  coef(model)[2]
+}
+
+```
+
+## Catchments 
+
+Aggregating all the extracted spatial and temporal drivers to the right resolution. 
+
+
+```{r}
+library(tidyverse)
+library(sf)
+shp <- sf::read_sf(file_shp)  
+
+# This line is to drop duplicate id's this is because trend and omdrev sometimes have the same lakes. 
+shp <- shp[!duplicated(shp$mvm_id), ]
+
+shp %>% select(x_utlopp, y_utlopp, mvm_id, Name) %>% st_drop_geometry() %>% rename(x_e_koord = x_utlopp, y_n_koord = y_utlopp,  stationname = Name) %>% mutate(mvm_id = as.numeric(mvm_id)) -> coordinates
+
+id.all <- shp$mvm_id
+
+df_sf <- st_as_sf(coordinates, coords = c("x_e_koord", "y_n_koord"), crs = 3006)
+df_wgs84 <- st_transform(df_sf, crs = 4326)
+
+# Extract transformed coordinates (lon/lat)
+coords <- st_coordinates(df_wgs84)
+coordinates$lon <- coords[, 1]
+coordinates$lat <- coords[, 2]
+
+coordinates
+```
+
+
+# Processing and loading data
+
+## Chemistry
+
+This chunk converts all the chemistry data into the standard units.
+As the API gives us multiple different units this ensures in the end each station uses the same standard unit for each variable.
+Some additional chemistry variables are calculated and values below the detection limit are replaced with half the detection limit. 
+Any station with only a single sample is removed.
+
+
+
+```{r}
+library(vroom)
+library(dplyr)
+library(lubridate)
+
+
+# df.chem <- read.csv(file_chemistry) %>% as_tibble() #uncomment if you only have one chemistry file
+# df.chem
+
+
+# Comment out if you have just one chemistry file
+# file_chemistry1 <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\01_data\02_raw_data\chemistry\water_chem_combined_catchments_2025.csv)" 
+# file_chemistry2 <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\01_data\02_raw_data\chemistry\water_chem_combined_catchments_post_2025.csv)" 
+# 
+# file_chemistry3 <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\01_data\02_raw_data\chemistry\water_chem_combined_catchments_pre_2025.csv)"
+# 
+# df.chem <- read.csv(file_chemistry1) %>% bind_rows(read.csv(file_chemistry2)) %>% bind_rows(read.csv(file_chemistry3)) %>%
+#   distinct(.keep_all = TRUE) %>% as_tibble() %>% select(-c(X))
+
+convertible <- sapply(df.chem, function(col) {
+  all(is.na(col) | !is.na(suppressWarnings(as.numeric(as.character(col)))))
+})
+
+
+
+# selecting only omdrev and trend studyName, remove this part in case you care about all the samples taken at a station, no matter what program
+df.chem <- df.chem %>% mutate(sampling_date = as.Date(sampling_date))%>% filter(grepl('trend|omdre', studyName)) %>% # if there are multiple samples on the same day , pick the one closest to 0.5 
+  mutate(across(-c(sampling_date,subprogramName, studyName), ~ suppressWarnings(as.numeric(as.character(.)))))
+  
+
+safe_col <- function(df, col) {
+  if (col %in% names(df)) df[[col]] else rep(NA, nrow(df))
+}
+
+# safe_coalesce <- function(df, ...) {
+#   cols <- list(...)
+#   vals <- lapply(cols, function(col) safe_col(df, col))
+#   dplyr::coalesce(!!!vals)
+# }
+
+  
+df.chem <-  df.chem %>%
+  mutate(
+    # TOC
+    toc_mg_l = coalesce(
+      safe_col(., "TOC_mgl"),
+      safe_col(., "TOC_mgl.C")
+    ),
+    toc_origin = case_when(
+      !is.na(safe_col(., "TOC_mgl")) ~ "TOC_mgl",
+      !is.na(safe_col(., "TOC_mgl.C")) ~ "TOC_mgl.C",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  drop_na(toc_mg_l) %>%
+  group_by(mvm_id, sampling_date, studyName) %>%
+  slice_min(order_by = abs(min_depth - 0.5), n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  mutate(
+    # Sulfate thresholds, detection limits 
+    SO4_IC_mgl.SO4 = ifelse(
+      safe_col(., "SO4_IC_mgl.SO4") <= 0.48,
+      0.24,
+      safe_col(., "SO4_IC_mgl.SO4")
+    ),
+    SO4_IC_mgl = ifelse(
+      safe_col(., "SO4_IC_mgl") <= 0.16,
+      0.08,
+      safe_col(., "SO4_IC_mgl")
+    ),
+    SO4_mgl.S = ifelse(
+      safe_col(., "SO4_mgl.S") <= 0.2,
+      0.1,
+      safe_col(., "SO4_mgl.S")
+    ),
+
+    # Tot N / TNb adjustments
+    `Tot_N_TNb_µgl.N` = ifelse(
+      (year(sampling_date) + (month(sampling_date) - 1) / 12) > (2009 + 8/12),
+      safe_col(., "Tot_N_TNb_µgl.N"),
+      NA
+    ),
+    `Tot_N_TNb_mgl.N` = ifelse(
+      (year(sampling_date) + (month(sampling_date) - 1) / 12) > (2009 + 8/12),
+      safe_col(., "Tot_N_TNb_mgl.N"),
+      NA
+    ),
+
+    tot_n_t_nb_mg_l_n = coalesce(
+      safe_col(., "Tot_N_mgl"),
+      safe_col(., "Tot_N_mgl.N"),
+      safe_col(., "Tot_N_µgl") / 1000,
+      safe_col(., "Tot_N_µgl.N") / 1000,
+      safe_col(., "Tot_N_TNb_µgl.N") / 1000,
+      safe_col(., "Tot_N_TNb_µgl") / 1000,
+      safe_col(., "Tot_N_TNb_mgl"),
+      safe_col(., "Tot_N_TNb_mgl.N"),
+      safe_col(., "Tot_N_summa_µgl") / 1000,
+      safe_col(., "Tot_N_summa_µgl.N") / 1000,
+      safe_col(., "Tot_N_ps_µgl.N") / 1000,
+      safe_col(., "Tot_N_ps_µgl") / 1000,
+      safe_col(., "Tot_N_ps_mgl"),
+      safe_col(., "Tot_N_ps_mgl.N")
+    ),
+
+    # Sulfate in mol/L & origin
+    so4_mol = coalesce(
+      safe_col(., "SO4_IC_mekvl") / (2 * 1000),
+      safe_col(., "SO4_mekvl") / (2 * 1000),
+      safe_col(., "SO4_IC_mgl") / (96.0626 * 1000),
+      safe_col(., "SO4_IC_mgl.SO4") / (96.0626 * 1000),
+      safe_col(., "SO4_mgl.SO4") / (96.0626 * 1000),
+      safe_col(., "SO4_mgl.S") / (32.06 * 1000),
+      safe_col(., "SO4_mgl") / (96.0626 * 1000)
+    ),
+    so4_origin = case_when(
+      !is.na(safe_col(., "SO4_IC_mekvl")) ~ "SO4_IC_mekvl",
+      !is.na(safe_col(., "SO4_mekvl")) ~ "SO4_mekvl",
+      !is.na(safe_col(., "SO4_IC_mgl")) ~ "SO4_IC_mgl",
+      !is.na(safe_col(., "SO4_IC_mgl.SO4")) ~ "SO4_IC_mgl.SO4",
+      !is.na(safe_col(., "SO4_mgl.SO4")) ~ "SO4_mgl.SO4",
+      !is.na(safe_col(., "SO4_mgl.S")) ~ "SO4_mgl.S",
+      !is.na(safe_col(., "SO4_mgl")) ~ "SO4_mgl",
+      TRUE ~ NA_character_
+    ),
+
+    # Iron (Fe)
+    fe_mg_l = coalesce(
+      safe_col(., "Fe_F_mgl"),
+      safe_col(., "Fe_F_µgl") / 1000,
+      safe_col(., "Fe_mgl"),
+      safe_col(., "Fe_µgl") / 1000
+    ),
+    fe_origin = case_when(
+      !is.na(safe_col(., "Fe_F_mgl")) ~ "Fe_F_mgl",
+      !is.na(safe_col(., "Fe_F_µgl")) ~ "Fe_F_µgl",
+      !is.na(safe_col(., "Fe_mgl")) ~ "Fe_mgl",
+      !is.na(safe_col(., "Fe_µgl")) ~ "Fe_µgl",
+      TRUE ~ NA_character_
+    ),
+
+    # Silicon (Si)
+    si_mg_l = coalesce(
+      safe_col(., "Si_F_mgl"),
+      safe_col(., "Si_µgl") / 1000,
+      safe_col(., "Si_mgl")
+    ),
+    si_origin = case_when(
+      !is.na(safe_col(., "Si_F_mgl")) ~ "Si_F_mgl",
+      !is.na(safe_col(., "Si_µgl")) ~ "Si_µgl",
+      !is.na(safe_col(., "Si_mgl")) ~ "Si_mgl",
+      TRUE ~ NA_character_
+    ),
+
+    # Aluminium (Al)
+    al_mg_l = coalesce(
+      safe_col(., "Al_F_µgl") / 1000,
+      safe_col(., "Al_ICP_µgl") / 1000,
+      safe_col(., "Al_ICPAES_µgl") / 1000,
+      safe_col(., "Al_s_µgl") / 1000,
+      safe_col(., "Al_µgl") / 1000
+    ),
+    al_origin = case_when(
+      !is.na(safe_col(., "Al_F_µgl")) ~ "Al_F_µgl",
+      !is.na(safe_col(., "Al_ICP_µgl")) ~ "Al_ICP_µgl",
+      !is.na(safe_col(., "Al_ICPAES_µgl")) ~ "Al_ICPAES_µgl",
+      !is.na(safe_col(., "Al_s_µgl")) ~ "Al_s_µgl",
+      !is.na(safe_col(., "Al_µgl")) ~ "Al_µgl",
+      TRUE ~ NA_character_
+    ),
+
+    # Ammonium (NH4‑N)
+    nh4_n_mg_l_n = coalesce(
+      safe_col(., "NH4_N_mgl"),
+      safe_col(., "NH4_N_µgl") / 1000,
+      safe_col(., "NH4_N_µgl.N") / 1000
+    ),
+    nh4_n_mg_l_n_origin = case_when(
+      !is.na(safe_col(., "NH4_N_mgl")) ~ "NH4_N_mgl",
+      !is.na(safe_col(., "NH4_N_µgl")) ~ "NH4_N_µgl",
+      !is.na(safe_col(., "NH4_N_µgl.N")) ~ "NH4_N_µgl.N",
+      TRUE ~ NA_character_
+    ),
+
+    # Calcium (Ca²⁺)
+    ca_mg_l = coalesce(
+      safe_col(., "Ca_F_mgl"),
+      (safe_col(., "Ca_mekvl") / 2) * 40.48,
+      safe_col(., "Ca_mgl")
+    ),
+    ca_origin = case_when(
+      !is.na(safe_col(., "Ca_F_mgl")) ~ "Ca_F_mgl",
+      !is.na(safe_col(., "Ca_mekvl")) ~ "Ca_mekvl",
+      !is.na(safe_col(., "Ca_mgl")) ~ "Ca_mgl",
+      TRUE ~ NA_character_
+    ),
+
+    # Potassium (K)
+    k_mg_l = coalesce(
+      safe_col(., "K_F_mgl"),
+      safe_col(., "K_mekvl") * 39.1,
+      safe_col(., "K_mgl")
+    ),
+    k_origin = case_when(
+      !is.na(safe_col(., "K_F_mgl")) ~ "K_F_mgl",
+      !is.na(safe_col(., "K_mekvl")) ~ "K_mekvl",
+      !is.na(safe_col(., "K_mgl")) ~ "K_mgl",
+      TRUE ~ NA_character_
+    ),
+
+    # Chloride (Cl⁻)
+    cl_mg_l = coalesce(
+      safe_col(., "Cl_mekvl") * 35.45,
+      safe_col(., "Cl_mgl")
+    ),
+    cl_origin = case_when(
+      !is.na(safe_col(., "Cl_mekvl")) ~ "Cl_mekvl",
+      !is.na(safe_col(., "Cl_mgl")) ~ "Cl_mgl",
+      TRUE ~ NA_character_
+    ),
+
+    # NO2 + NO3 as N
+    no2_no3_n_mg_l_n = coalesce(
+      safe_col(., "NO2_NO3_N_µgl") / 1000,
+      safe_col(., "NO2_NO3_N_mgl"),
+      safe_col(., "NO2_NO3_N_µgl.N") / 1000,
+      safe_col(., "NO3_N_µgl") / 1000,
+      safe_col(., "NO3_N_mgl")
+    ),
+    no2_no3_n_mg_l_n_origin = case_when(
+      !is.na(safe_col(., "NO2_NO3_N_µgl")) ~ "NO2_NO3_N_µgl",
+      !is.na(safe_col(., "NO2_NO3_N_mgl")) ~ "NO2_NO3_N_mgl",
+      !is.na(safe_col(., "NO2_NO3_N_µgl.N")) ~ "NO2_NO3_N_µgl.N",
+      !is.na(safe_col(., "NO3_N_µgl")) ~ "NO3_N_µgl",
+      !is.na(safe_col(., "NO3_N_mgl")) ~ "NO3_N_mgl",
+      TRUE ~ NA_character_
+    ),
+
+    # Fluoride (F)
+    f_mg_l = safe_col(., "Fluorid_mgl"),
+    f_origin = case_when(
+      !is.na(safe_col(., "Fluorid_mgl")) ~ "Fluorid_mgl",
+      TRUE ~ NA_character_
+    ),
+
+    # Alkalinity / Acidity
+    alk_acid_mmol = case_when(
+      !is.na(safe_col(., "Alk_Acid_mekvl")) ~ safe_col(., "Alk_Acid_mekvl"),
+      !is.na(safe_col(., "Alk_Acid_mmoll")) ~ safe_col(., "Alk_Acid_mmoll"),
+      (!is.na(safe_col(., "Acid_mekvl")) & safe_col(., "Acid_mekvl") != 0) ~ -safe_col(., "Acid_mekvl"),
+      !is.na(safe_col(., "Alk_mg.HCO3l")) ~ safe_col(., "Alk_mg.HCO3l") / 61.02,
+      !is.na(safe_col(., "Alk_mekvl")) ~ safe_col(., "Alk_mekvl"),
+      !is.na(safe_col(., "Alk_mmoll")) ~ safe_col(., "Alk_mmoll"),
+      TRUE ~ NA_real_
+    ),
+    alk_acid_origin = case_when(
+      !is.na(safe_col(., "Alk_Acid_mekvl")) ~ "Alk_Acid_mekvl",
+      !is.na(safe_col(., "Alk_Acid_mmoll")) ~ "Alk_Acid_mmoll",
+      (!is.na(safe_col(., "Acid_mekvl")) & safe_col(., "Acid_mekvl") != 0) ~ "Acid_mekvl",
+      !is.na(safe_col(., "Alk_mg.HCO3l")) ~ "Alk_mg.HCO3l",
+      !is.na(safe_col(., "Alk_mekvl")) ~ "Alk_mekvl",
+      !is.na(safe_col(., "Alk_mmoll")) ~ "Alk_mmoll",
+      TRUE ~ NA_character_
+    ),
+
+    # Sodium (Na)
+    na_mg_l = coalesce(
+      safe_col(., "Na_F_mgl"),
+      safe_col(., "Na_mekvl") * 22.99,
+      safe_col(., "Na_mgl")
+    ),
+    na_origin = case_when(
+      !is.na(safe_col(., "Na_F_mgl")) ~ "Na_F_mgl",
+      !is.na(safe_col(., "Na_mekvl")) ~ "Na_mekvl",
+      !is.na(safe_col(., "Na_mgl")) ~ "Na_mgl",
+      TRUE ~ NA_character_
+    ),
+
+    # Manganese (Mn)
+    mn_mg_l = coalesce(
+      safe_col(., "Mn_F_µgl") / 1000,
+      safe_col(., "Mn_µgl") / 1000,
+      safe_col(., "Mn_mgl")
+    ),
+    mn_origin = case_when(
+      !is.na(safe_col(., "Mn_F_µgl")) ~ "Mn_F_µgl",
+      !is.na(safe_col(., "Mn_µgl")) ~ "Mn_µgl",
+      !is.na(safe_col(., "Mn_mgl")) ~ "Mn_mgl",
+      TRUE ~ NA_character_
+    ),
+
+    # Zinc (Zn)
+    zn_mg_l = coalesce(
+      safe_col(., "Zn_F_mgl"),
+      safe_col(., "Zn_µgl") / 1000,
+      safe_col(., "Zn_mgl")
+    ),
+    zn_origin = case_when(
+      !is.na(safe_col(., "Zn_F_mgl")) ~ "Zn_F_mgl",
+      !is.na(safe_col(., "Zn_µgl")) ~ "Zn_µgl",
+      !is.na(safe_col(., "Zn_mgl")) ~ "Zn_mgl",
+      TRUE ~ NA_character_
+    ),
+
+    # Copper (Cu)
+    cu_mg_l = coalesce(
+      safe_col(., "Cu_F_mgl"),
+      safe_col(., "Cu_µgl") / 1000,
+      safe_col(., "Cu_mgl")
+    ),
+    cu_origin = case_when(
+      !is.na(safe_col(., "Cu_F_mgl")) ~ "Cu_F_mgl",
+      !is.na(safe_col(., "Cu_µgl")) ~ "Cu_µgl",
+      !is.na(safe_col(., "Cu_mgl")) ~ "Cu_mgl",
+      TRUE ~ NA_character_
+    ),
+
+    # Vanadium (V)
+    v_mg_l = coalesce(
+      safe_col(., "V_F_µgl") / 1000,
+      safe_col(., "V_µgl") / 1000,
+      safe_col(., "V_mgl")
+    ),
+    v_origin = case_when(
+      !is.na(safe_col(., "V_F_µgl")) ~ "V_F_µgl",
+      !is.na(safe_col(., "V_µgl")) ~ "V_µgl",
+      !is.na(safe_col(., "V_mgl")) ~ "V_mgl",
+      TRUE ~ NA_character_
+    ),
+
+    # Nickel (Ni)
+    ni_mg_l = coalesce(
+      safe_col(., "Ni_F_µgl") / 1000,
+      safe_col(., "Ni_µgl") / 1000,
+      safe_col(., "Ni_mgl")
+    ),
+    ni_origin = case_when(
+      !is.na(safe_col(., "Ni_F_µgl")) ~ "Ni_F_µgl",
+      !is.na(safe_col(., "Ni_µgl")) ~ "Ni_µgl",
+      !is.na(safe_col(., "Ni_mgl")) ~ "Ni_mgl",
+      TRUE ~ NA_character_
+    ),
+
+    # Lead (Pb)
+    pb_mg_l = coalesce(
+      safe_col(., "Pb_F_µgl") / 1000,
+      safe_col(., "Pb_µgl") / 1000,
+      safe_col(., "Pb_mgl")
+    ),
+    pb_origin = case_when(
+      !is.na(safe_col(., "Pb_F_µgl")) ~ "Pb_F_µgl",
+      !is.na(safe_col(., "Pb_µgl")) ~ "Pb_µgl",
+      !is.na(safe_col(., "Pb_mgl")) ~ "Pb_mgl",
+      TRUE ~ NA_character_
+    ),
+
+    # Electrical Conductivity (to 20 °C)
+    ec20_µS_cm = coalesce(
+      safe_col(., "Kond_20_µScm"),
+      safe_col(., "Kond_25_µScm") * 0.90,
+      safe_col(., "Kond_20_mSm") * 10,
+      safe_col(., "Kond_25_mSm") * 10 * 0.90,
+      safe_col(., "Kond_mSm") * 10 * 0.90
+    ),
+    ec20_origin = case_when(
+      !is.na(safe_col(., "Kond_20_µScm")) ~ "Kond_20_µScm",
+      !is.na(safe_col(., "Kond_25_µScm")) ~ "Kond_25_µScm",
+      !is.na(safe_col(., "Kond_20_mSm")) ~ "Kond_20_mSm",
+      !is.na(safe_col(., "Kond_25_mSm")) ~ "Kond_25_mSm",
+      !is.na(safe_col(., "Kond_mSm")) ~ "Kond_mSm",
+      TRUE ~ NA_character_
+    ),
+
+    # Absorbance / Fluorescence
+    abs_f_420_5cm = safe_col(., "Abs_F420_5cm"),
+    
+  # Total Phosphorus
+  tot_p_mg_l_p = coalesce(
+    safe_col(., "Tot_P_µgl") / 1000,
+    safe_col(., "Tot_P_µgl.P") / 1000,
+    safe_col(., "Tot_P_mgl"),
+    safe_col(., "Tot_P_mgl.P"),
+    safe_col(., "Tot_P_F_µgl") / 1000,
+    safe_col(., "Tot_P_F_µgl.P") / 1000,
+    safe_col(., "Tot_P_F_mgl.P")
+  ),
+  
+  tot_p_origin = case_when(
+    !is.na(safe_col(., "Tot_P_µgl")) ~ "Tot_P_µgl",
+    !is.na(safe_col(., "Tot_P_µgl.P")) ~ "Tot_P_µgl.P",
+    !is.na(safe_col(., "Tot_P_mgl")) ~ "Tot_P_mgl",
+    !is.na(safe_col(., "Tot_P_mgl.P")) ~ "Tot_P_mgl.P",
+    !is.na(safe_col(., "Tot_P_F_µgl")) ~ "Tot_P_F_µgl",
+    !is.na(safe_col(., "Tot_P_F_µgl.P")) ~ "Tot_P_F_µgl.P",
+    !is.na(safe_col(., "Tot_P_F_mgl.P")) ~ "Tot_P_F_mgl.P",
+    TRUE ~ NA_character_
+  ),
+  ca_mg_l = coalesce(
+    safe_col(., "Ca_F_mgl"),                # already mg/L
+    safe_col(., "Ca_mekvl") /2 *40.48,        # meq/L → mg/L (40.08 g/mol ÷ 2 eq/mol = 20.04 mg/meq)
+    safe_col(., "Ca_mgl")                   # already mg/L
+  ),
+  
+  ca_origin = case_when(
+    !is.na(safe_col(., "Ca_F_mgl")) ~ "Ca_F_mgl",
+    !is.na(safe_col(., "Ca_mekvl")) ~ "Ca_mekvl",
+    !is.na(safe_col(., "Ca_mgl")) ~ "Ca_mgl",
+    TRUE ~ NA_character_
+  ),
+  mg_mg_l = coalesce(
+    safe_col(., "Mg_F_mgl"),                 # already mg/L
+    safe_col(., "Mg_mekvl") /2 *24.305,       # meq/L → mg/L (24.305 g/mol ÷ 2 eq/mol = 12.1525 mg/meq)
+    safe_col(., "Mg_mgl")                    # already mg/L
+  ),
+  
+  mg_origin = case_when(
+    !is.na(safe_col(., "Mg_F_mgl")) ~ "Mg_F_mgl",
+    !is.na(safe_col(., "Mg_mekvl")) ~ "Mg_mekvl",
+    !is.na(safe_col(., "Mg_mgl")) ~ "Mg_mgl",
+    TRUE ~ NA_character_
+  ),
+  na_mg_l = coalesce(
+    safe_col(., "Na_F_mgl"),            # already mg/L
+    safe_col(., "Na_mekvl") * 22.99,    # meq/L → mg/L (Na⁺: 22.99 g/mol ÷ 1 eq/mol)
+    safe_col(., "Na_mgl")               # already mg/L
+  ),
+  
+  na_origin = case_when(
+    !is.na(safe_col(., "Na_F_mgl")) ~ "Na_F_mgl",
+    !is.na(safe_col(., "Na_mekvl")) ~ "Na_mekvl",
+    !is.na(safe_col(., "Na_mgl")) ~ "Na_mgl",
+    TRUE ~ NA_character_
+  )
+  )
+
+df.chem %>% select(mvm_id) %>% mutate(mvm_id = as.numeric(mvm_id)) %>% unique() %>% summarize(count.unique=n())%>% pull() -> n_stations_pre_filtering
+
+print(paste("We downloaded chemistry data from",n_stations_pre_filtering, "stations that are part of trendlakes and the swedish lake survey (SLS), the rest had data only before 1980."))
+
+
+# this is a set of duplicate stations, where a single station has multiple ids
+id_redirect <- c(
+  "2638"  = "2021",
+  "41634" = "40311",
+  "41534" = "40352"
+)
+
+safe_numeric <- function(df, col) {
+  if (col %in% names(df)) as.numeric(df[[col]]) else rep(NA_real_, nrow(df))
+}
+
+
+# setting common detection limits, this is to ensure the changes in detection limits don't result in a 'fake' trend.
+# Values below the detection limits are replaced with half the detection limit.
+df.chem <- df.chem %>%
+  mutate(
+    si_mg_l = case_when(safe_numeric(., "si_mg_l") <= 0.5 ~ 0.25,
+                        TRUE ~ safe_numeric(., "si_mg_l")),
+    cl_mg_l = case_when(safe_numeric(., "cl_mg_l") <= 0.25 ~ 0.125,
+                        TRUE ~ safe_numeric(., "cl_mg_l")),
+    zn_mg_l = case_when(safe_numeric(., "zn_mg_l") <= 0.0005 ~ 0.00025,
+                        TRUE ~ safe_numeric(., "zn_mg_l")),
+    v_mg_l = case_when(safe_numeric(., "v_mg_l") <= 0.00003 ~ 0.000015,
+                       TRUE ~ safe_numeric(., "v_mg_l")),
+    pb_mg_l = case_when(safe_numeric(., "pb_mg_l") <= 0.00002 ~ 0.00001,
+                        TRUE ~ safe_numeric(., "pb_mg_l")),
+    mn_mg_l = case_when(safe_numeric(., "mn_mg_l") <= 0.0005 ~ 0.00025,
+                        TRUE ~ safe_numeric(., "mn_mg_l")),
+    ni_mg_l = case_when(safe_numeric(., "ni_mg_l") <= 0.00005 ~ 0.000025,
+                        TRUE ~ safe_numeric(., "ni_mg_l")),
+    fe_mg_l = case_when(safe_numeric(., "fe_mg_l") <= 0.01 ~ 0.005,
+                        TRUE ~ safe_numeric(., "fe_mg_l")),
+    f_mg_l = case_when(safe_numeric(., "f_mg_l") <= 0.05 ~ 0.025,
+                       TRUE ~ safe_numeric(., "f_mg_l")),
+    cu_mg_l = case_when(safe_numeric(., "cu_mg_l") < 0.00004 ~ 0.00002,
+                        TRUE ~ safe_numeric(., "cu_mg_l")),
+    cr_mg_l = case_when(safe_numeric(., "cr_mg_l") <= 0.00005 ~ 0.000025,
+                        TRUE ~ safe_numeric(., "cr_mg_l")),
+    co_mg_l = case_when(safe_numeric(., "co_mg_l") <= 0.00001 ~ 0.000005,
+                        TRUE ~ safe_numeric(., "co_mg_l")),
+    cd_mg_l = case_when(safe_numeric(., "cd_mg_l") <= 0.000006 ~ 0.000003,
+                        TRUE ~ safe_numeric(., "cd_mg_l")),
+    as_mg_l = case_when(safe_numeric(., "as_mg_l") <= 0.000003 ~ 0.0000015,
+                        TRUE ~ safe_numeric(., "as_mg_l")),
+    k_mg_l = case_when(safe_numeric(., "k_mg_l") <= 0.04 ~ 0.02,
+                       TRUE ~ safe_numeric(., "k_mg_l")),
+    al_mg_l = case_when(safe_numeric(., "al_mg_l") < 0.005 ~ 0.0025,
+                        TRUE ~ safe_numeric(., "al_mg_l")),
+    nh4_n_mg_l_n = case_when(safe_numeric(., "nh4_n_mg_l_n") <= 0.004 ~ 0.002,
+                             TRUE ~ safe_numeric(., "nh4_n_mg_l_n")),
+    no2_no3_n_mg_l_n = case_when(safe_numeric(., "no2_no3_n_mg_l_n") <= 0.003 ~ 0.0015,
+                                 TRUE ~ safe_numeric(., "no2_no3_n_mg_l_n")),
+    toc_mg_l_c = case_when(safe_numeric(., "toc_mg_l") <= 0.05 ~ 0.025,
+                           TRUE ~ safe_numeric(., "toc_mg_l")),
+    totn = case_when(safe_numeric(., "tot_n_t_nb_mg_l_n") <= 0.050 ~ 0.025,
+                     TRUE ~ safe_numeric(., "tot_n_t_nb_mg_l_n")),
+    totp = case_when(safe_numeric(., "tot_p_mg_l_p") <= 0.001 ~ 0.0005,
+                     TRUE ~ safe_numeric(., "tot_p_mg_l_p")),
+    absf = case_when(safe_numeric(., "abs_f_420_5cm") <= 0.01 ~ 0.005,
+                     TRUE ~ safe_numeric(., "abs_f_420_5cm")),
+
+    # Derived values
+    DIN_mg_l_n = safe_numeric(., "nh4_n_mg_l_n") + safe_numeric(., "no2_no3_n_mg_l_n"),
+    BC_mekv_l = (
+      safe_numeric(., "ca_mg_l") / 40.078 * 2 +
+      safe_numeric(., "mg_mg_l") / 24.305 * 2 +
+      safe_numeric(., "na_mg_l") / 22.99 +
+      safe_numeric(., "k_mg_l") / 39.01
+    ),
+    ANC_mekv_l = (
+      safe_numeric(., "ca_mg_l") / 40.078 * 2 +
+      safe_numeric(., "mg_mg_l") / 24.305 * 2 +
+      safe_numeric(., "na_mg_l") / 22.99 +
+      safe_numeric(., "k_mg_l") / 39.01
+    ) - (
+      safe_numeric(., "cl_mg_l") / 35.45 +
+      safe_numeric(., "so4_mol") * 2 * 1000 +
+      safe_numeric(., "no2_no3_n_mg_l_n") / 14
+    ),
+
+    year = year(sampling_date),
+    pH = safe_numeric(., "pH_")
+  ) %>%
+  select(
+    si_mg_l, cl_mg_l, zn_mg_l, v_mg_l, pb_mg_l, mn_mg_l, ni_mg_l,
+    fe_mg_l, f_mg_l, cu_mg_l, cr_mg_l, co_mg_l, cd_mg_l, as_mg_l,
+    k_mg_l, al_mg_l, nh4_n_mg_l_n, no2_no3_n_mg_l_n, toc_mg_l_c, ca_mg_l, na_mg_l, mg_mg_l,
+    totn, totp, absf, DIN_mg_l_n, BC_mekv_l, ANC_mekv_l, pH, sampling_date,
+    sample_id, min_depth, max_depth, subprogramName, studyName, mvm_id,
+    alk_acid_mmol, ec20_µS_cm, so4_mol, year
+  )
+
+# stations with less than 1 sample 2013-2024are removed
+stations_with_omdre <- df.chem %>%
+  filter(grepl("omdre", studyName, ignore.case = TRUE)) %>%   # only "omdre" studies
+  mutate(mvp_id = recode(as.character(mvm_id), !!!id_redirect)) %>%
+  filter(lubridate::year(sampling_date) >= 2013,
+         lubridate::year(sampling_date) <= 2024) %>%
+  count(mvp_id) %>%
+  filter(n > 1) %>%
+  pull(mvp_id)
+
+stations_with_trend <- df.chem %>%
+  filter(grepl("trend", studyName, ignore.case = TRUE)) %>%   # only "trend" studies
+  mutate(mvp_id = recode(as.character(mvm_id), !!!id_redirect)) %>%
+  filter(lubridate::year(sampling_date) >= 2013,
+         lubridate::year(sampling_date) <= 2024) %>%
+  count(mvp_id) %>%
+  filter(n > 1) %>%
+  pull(mvp_id)
+
+stations_with_enough_data <- c(108,stations_with_trend, stations_with_omdre)
+
+
+df.chem <- df.chem %>%
+  mutate(mvp_id = recode(as.character(mvm_id), !!!id_redirect)) %>%
+  filter(mvp_id %in% stations_with_enough_data)
+
+df.chem
+
+# rm(df.chem)
+
+```
+Save the preprocessed chemistry file / files. 
+```{r}
+## This data contains only the trend and omdrev data from these stations but it still contains all the seasons
+
+df.chem %>% left_join(coordinates %>% mutate(mvm_id = as.numeric(mvm_id)))%>% write.csv(file_chemistry_processed)
+
+
+df.chem  %>% filter( grepl('trend', studyName))  %>% group_by(mvm_id) %>% filter(n() > 1) %>% ungroup()-> df.chem.trend
+
+df.chem  %>% filter( grepl('omdre', studyName) ) %>% group_by(mvm_id) %>% filter(n() > 1) -> df.chem.sls
+
+df.chem.sls %>% left_join(coordinates%>% mutate(mvm_id = as.numeric(mvm_id)))%>% write.csv(file_chemistry.sls)
+
+df.chem.trend %>% left_join(coordinates%>% mutate(mvm_id = as.numeric(mvm_id)))%>% write.csv(file_chemistry.trend)
+
+
+df.chem
+
+```
+
+## Climate Data
+
+Trend lakes 
+```{r}
+library(tidyverse)
+library(mblm)
+
+
+file_list <- list.files(path = folder_climate, pattern = "*\\.csv$", full.names = FALSE)
+
+file_ids <- gsub(
+  "(.*)\\.csv$", "\\1", file_list)
+
+missing_ids <- setdiff(id.all, file_ids)
+```
+
+```{r}
+library(dplyr)
+library(purrr)
+library(mblm)
+library(readr)  # For faster reading
+library(lubridate)
+
+
+# --- Safely process each ID ---
+climate_results <- map_dfr(id.all, function(id) {
+  tryCatch({
+    csv.path <- paste0(folder_climate,"\\" , id, ".csv")
+    climate <- read_csv(csv.path, show_col_types = FALSE) %>%
+      mutate(
+        sampling_date = as.Date(date),
+        year = year(sampling_date)
+      ) %>%
+      rename(
+        snow_threshold = band_data,
+        temp = tas
+      )
+
+    # --- Start period ---
+    start_period <- filter(climate, year >= 2008, year <= 2012)
+
+    temp_start <- mean(start_period$temp, na.rm = TRUE)
+
+    pr_start <- start_period %>%
+      group_by(year) %>%
+      summarise(total_pr = sum(pr, na.rm = TRUE), .groups = "drop") %>%
+      summarise(mean_total_pr = mean(total_pr, na.rm = TRUE)) %>%
+      pull(mean_total_pr)
+
+    pr_snow_start <- start_period %>%
+      group_by(year) %>%
+      summarise(total_pr_snow = sum(pr_snow, na.rm = TRUE), .groups = "drop") %>%
+      summarise(mean_total_pr_snow = mean(total_pr_snow, na.rm = TRUE)) %>%
+      pull(mean_total_pr_snow)
+
+    # --- Change period ---
+    annual_stats <- filter(climate, year >= 2013, year <= 2024) %>%
+      group_by(year) %>%
+      summarise(
+        mean_temp = mean(temp, na.rm = TRUE),
+        total_pr = sum(pr, na.rm = TRUE),
+        total_pr_snow = sum(pr_snow, na.rm = TRUE),
+        .groups = "drop"
+      )
+
+    temp_change <- if (nrow(annual_stats) >= 2) coef(mblm(mean_temp ~ year, data = annual_stats))[2] else NA
+    pr_change <- if (nrow(annual_stats) >= 2) coef(mblm(total_pr ~ year, data = annual_stats))[2] else NA
+    pr_snow_change <- if (nrow(annual_stats) >= 2) coef(mblm(total_pr_snow ~ year, data = annual_stats))[2] else NA
+
+    temp_var <- robust_variation(annual_stats$mean_temp)
+    pr_var <- robust_variation(annual_stats$total_pr)
+    pr_snow_var <- robust_variation(annual_stats$total_pr_snow)
+
+    tibble(
+      mvm_id = id,
+      temp_start = temp_start,
+      temp_change = temp_change,
+      temp_variation = temp_var,
+      pr_start = pr_start,
+      pr_change = pr_change,
+      pr_variation = pr_var,
+      pr_snow_start = pr_snow_start,
+      pr_snow_change = pr_snow_change,
+      pr_snow_variation = pr_snow_var
+    )
+  }, error = function(e) {
+    message(paste("Error processing ID:", id, "-", e$message))
+    return(NULL)  # Skip this ID
+  })
+})
+
+climate_results%>% write_csv(file_climate_processed)
+
+```
+
+```{r}
+library(vtable)
+climate.all <-  read_csv(file_climate_processed) # %>% rename(mvm_id = id)
+climate.all %>% sumtable()
+```
+
+
+# Elevation
+
+
+```{r}
+library(readxl)
+
+general1 <- read_excel(NMD_file1, sheet = "aro_survey_and_trend_lakes_Merg") %>% as_tibble() %>% transmute(mvm_id = as.numeric(mvmid), 
+                      lake_area_m2 = na_if(lake_area_, 0),
+                      elevation_m = elev_utl,
+                      area_m2 = Shape_Area) # %>% select(-all_of(c("Unnamed: 0","...1" , "area_ARO_m2"    , "area_ARO_km2"  )))
+
+general2 <- read_excel(NMD_file2, sheet = "aro_omdrev_AnnaL251001") %>% as_tibble() %>% transmute(mvm_id = as.numeric(mvmid), 
+                      lake_area_m2 = na_if(lake_area_, 0),
+                      elevation_m = elev_utl,
+                      area_m2 = Shape_Area) # %>% select(-all_of(c("Unnamed: 0","...1" , "area_ARO_m2"    , "area_ARO_km2"  )))
+
+general <- general1 %>% filter(!mvm_id %in% general2$mvm_id) %>%  bind_rows(general2)
+
+
+general
+```
+
+## NMD
+
+```{r}
+library(readxl)
+
+NMD1 <- read_excel(NMD_file1, sheet = "nmd") %>% as_tibble() %>% select(-all_of(c("Unnamed: 0","...1" , "area_ARO_m2"    , "area_ARO_km2"  ))) %>% transmute(mvm_id = mvmid,
+                  `forest_wetland` = rowSums(select(., contains("på våtmark")), na.rm = TRUE),
+                  open_wetland = `Öppen våtmark`,
+                  open_water = `Sjö och vattendrag` + `Hav`,
+                  forest = rowSums(select(., contains("skog")), na.rm = TRUE),
+                  semi_urban = rowSums(select(., contains("ploaterad mark")), na.rm = TRUE),
+                  agriculture = `Åkermark`
+                  )
+NMD2 <- read_excel(NMD_file2, sheet = "nmd") %>% as_tibble() %>% select(-all_of(c("...1" , "area_ARO_m2"    , "area_ARO_km2"  ))) %>% transmute(mvm_id = mvmid,
+                  `forest_wetland` = rowSums(select(., contains("på våtmark")), na.rm = TRUE),
+                  open_wetland = `Öppen våtmark`,
+                  open_water = `Sjö och vattendrag` + `Hav`,
+                  forest = rowSums(select(., contains("skog")), na.rm = TRUE),
+                  semi_urban = rowSums(select(., contains("ploaterad mark")), na.rm = TRUE),
+                  agriculture = `Åkermark`
+                  )
+
+NMD <- NMD1 %>% filter(!mvm_id %in% NMD2$mvm_id) %>% bind_rows(NMD2)
+NMD
+```
+
+## High coast
+
+
+```{r}
+
+HK <- read_csv(file_HK)
+HK
+```
+
+## Runoff
+
+```{r}
+library(mblm)
+
+discharge.trend <- read_csv(file_discharge.trend) %>% mutate(sampling_date = date, q_m3_s = q, spec_q_mm_day = q/area_m2*1000*24*60*60, log_spec_q_mm_day = log10(spec_q_mm_day + 	0.000000000001 ), year = year(sampling_date)) 
+
+discharge_trend <- discharge.trend %>%
+  group_by(mvm_id) %>%
+  group_split() %>%
+  map_dfr(function(df) {
+    tryCatch({
+      id <- unique(df$mvm_id)
+      uncertainty <- unique(df$model_uncertainty_station_corrected)
+
+      # --- Start period (2008–2012) ---
+      start_period <- filter(df, year >= 2008, year <= 2012)
+
+      spec_q_start <- mean(start_period$spec_q_mm_day, na.rm = TRUE)
+      log_spec_q_start <- if (all(is.na(start_period$log_spec_q_mm_day))) {
+  NA_real_
+} else {
+  mean(start_period$log_spec_q_mm_day, na.rm = TRUE)
+}
+      q_start <- mean(start_period$q_m3_s, na.rm = TRUE)
+
+      # --- Change period (2013–2024) ---
+      annual_stats <- filter(df, year >= 2013, year <= 2024)%>%
+      mutate(
+        log_spec_q_mm_day = ifelse(is.finite(log_spec_q_mm_day), log_spec_q_mm_day, NA)) %>%
+        group_by(year) %>%
+        summarise(
+          mean_spec_q = mean(spec_q_mm_day, na.rm = TRUE),
+          mean_log_spec_q = mean(log_spec_q_mm_day, na.rm = TRUE),
+          mean_q = mean(q_m3_s, na.rm = TRUE),
+          .groups = "drop"
+        )
+
+      spec_q_change <- if (nrow(annual_stats) >= 2) coef(mblm(mean_spec_q ~ year, data = annual_stats))[2] else NA
+      log_spec_q_change <- tryCatch({
+            if (nrow(annual_stats) >= 2) {
+              coef(mblm(mean_log_spec_q ~ year, data = annual_stats))[2]
+            } else {
+              NA
+            }
+          }, error = function(e) NA)
+      q_change <- if (nrow(annual_stats) >= 2) coef(mblm(mean_q ~ year, data = annual_stats))[2] else NA
+
+      spec_q_var <- robust_variation(annual_stats$mean_spec_q)
+      log_spec_q_var <- robust_variation(annual_stats$mean_log_spec_q)
+      q_var <- robust_variation(annual_stats$mean_q)
+
+      tibble(
+        mvm_id = id,
+        spec_q_start = spec_q_start,
+        spec_q_change = spec_q_change,
+        spec_q_variation = spec_q_var,
+        log_spec_q_start = log_spec_q_start,
+        log_spec_q_change = log_spec_q_change,
+        log_spec_q_variation = log_spec_q_var,
+        q_start = q_start,
+        q_change = q_change,
+        q_variation = q_var,
+        q_uncertainty = uncertainty
+      )
+    }, error = function(e) {
+      message(paste("Error processing mvm_id:", unique(df$mvm_id), "-", e$message))
+      return(NULL)
+    })
+  })
+
+discharge_trend
+
+discharge.omdrev <- read_csv(file_discharge.omdrev) %>% mutate(year = year(date), month = month(date), q_m3_s = q, spec_q_mm_day = q/area_m2*1000*24*60*60, log_spec_q_mm_day = log10(spec_q_mm_day + 	0.000000000001 ))
+
+discharge_sls <- discharge.omdrev %>%
+  group_by(mvm_id) %>%
+  group_split() %>%
+  map_dfr(function(df) {
+    tryCatch({
+      id <- unique(df$mvm_id)
+      uncertainty <- unique(df$model_uncertainty_station_corrected)
+
+      # --- Start period (2008–2012) ---
+      start_period <- filter(df, year >= 2008, year <= 2012)
+
+      spec_q_start <- mean(start_period$spec_q_mm_day, na.rm = TRUE)
+      log_spec_q_start <- mean(start_period$log_spec_q_mm_day, na.rm = TRUE)
+      q_start <- mean(start_period$q_m3_s, na.rm = TRUE)
+
+      # --- Change period (2013–2024) ---
+      annual_stats <- filter(df, year >= 2013, year <= 2024)%>%
+      mutate(
+        log_spec_q_mm_day = ifelse(is.finite(log_spec_q_mm_day), log_spec_q_mm_day, NA)) %>%
+        group_by(year) %>%
+        summarise(
+          mean_spec_q = mean(spec_q_mm_day, na.rm = TRUE),
+          mean_log_spec_q = mean(log_spec_q_mm_day, na.rm = TRUE),
+          mean_q = mean(q_m3_s, na.rm = TRUE),
+          .groups = "drop"
+        )
+
+      spec_q_change <- if (nrow(annual_stats) >= 2) coef(mblm(mean_spec_q ~ year, data = annual_stats))[2] else NA
+      log_spec_q_change <- tryCatch({
+            if (nrow(annual_stats) >= 2) {
+              coef(mblm(mean_log_spec_q ~ year, data = annual_stats))[2]
+            } else {
+              NA
+            }
+          }, error = function(e) NA)
+      q_change <- if (nrow(annual_stats) >= 2) coef(mblm(mean_q ~ year, data = annual_stats))[2] else NA
+
+      spec_q_var <- robust_variation(annual_stats$mean_spec_q)
+      log_spec_q_var <- robust_variation(annual_stats$mean_log_spec_q)
+      q_var <- robust_variation(annual_stats$mean_q)
+
+      tibble(
+        mvm_id = id,
+        spec_q_start = spec_q_start,
+        spec_q_change = spec_q_change,
+        spec_q_variation = spec_q_var,
+        log_spec_q_start = log_spec_q_start,
+        log_spec_q_change = log_spec_q_change,
+        log_spec_q_variation = log_spec_q_var,
+        q_start = q_start,
+        q_change = q_change,
+        q_variation = q_var, 
+        q_uncertainty = uncertainty
+      )
+    }, error = function(e) {
+      message(paste("Error processing mvm_id:", unique(df$mvm_id), "-", e$message))
+      return(NULL)
+    })
+  })
+
+discharge <- bind_rows(discharge_trend, discharge_sls) %>%
+  distinct(mvm_id, .keep_all = TRUE)
+
+write_csv(discharge, file_discharge.combined)
+
+discharge <- read_csv(file_discharge.combined)
+
+```
+
+## Soil Depth   
+
+```{r}
+soil_depth <- read_csv(soil_depth_file)
+
+#soil_depth_corr <- read_csv(r"(C:\Users\anlr0006\repos-win\DOC_catchments\corrections_results\soil_depth.csv)") %>% rename(mvm_id = id)
+# soil_depth %>% filter(!(mvm_id %in% soil_depth_corr$mvm_id)) %>%  bind_rows(soil_depth_corr) %>% write.csv(soil_depth_file, row.names = F) 
+
+soil_depth %>% transmute(mvm_id, 
+                         soil_depth_mean = mean,
+                         soil_depth_IQR = `75th_percentile` - `25th_percentile`
+                         ) -> soil_depth
+soil_depth
+```
+
+## Atmospheric Deposition 
+
+```{r}
+
+emep.1 <- read_csv(emep_file.1) %>% mutate(S_dep_mean_kg_ha_yr = log10(S_dep_mean_kg_ha), N_dep_mean_kg_ha_yr = log10(N_dep_mean_kg_ha))
+emep.2 <- read_csv(emep_file.2) %>% mutate(S_dep_mean_kg_ha_yr= log10(S_dep_mean_kg_ha), N_dep_mean_kg_ha_yr = log10(N_dep_mean_kg_ha))
+
+emep.trend <- emep.1  %>%
+  group_by(mvm_id) %>%
+  group_split() %>%
+  map_dfr(function(df) {
+    tryCatch({
+      id <- unique(df$mvm_id)
+
+      # --- Start period (2008–2012) ---
+      start_period <- filter(df, year >= 1990, year <= 1994)
+
+      S_dep_kg_ha_yr_start <- mean(start_period$S_dep_mean_kg_ha_yr, na.rm = TRUE)
+      N_dep_kg_ha_yr_start <- mean(start_period$N_dep_mean_kg_ha_yr, na.rm = TRUE)
+
+      # --- Change period (2013–2024) ---
+      annual_stats <- filter(df, year >= 1995, year <= 2024)%>%
+      mutate(
+        S_dep_kg_ha_yr = ifelse(is.finite(S_dep_mean_kg_ha_yr), S_dep_mean_kg_ha_yr, NA),
+        N_dep_kg_ha_yr = ifelse(is.finite(N_dep_mean_kg_ha_yr), N_dep_mean_kg_ha_yr, NA)) %>%
+        group_by(year) %>%
+        
+        summarise(
+          mean_S_dep_kg_ha_yr = mean(S_dep_kg_ha_yr, na.rm = TRUE),
+          mean_N_dep_kg_ha_yr = mean(N_dep_kg_ha_yr, na.rm = TRUE),
+          .groups = "drop"
+        )
+
+
+      S_dep_kg_ha_yr_change <- tryCatch({
+            if (nrow(annual_stats) >= 2) {
+              coef(mblm(mean_S_dep_kg_ha_yr ~ year, data = annual_stats))[2]
+            } else {
+              NA
+            }
+          }, error = function(e) NA)
+
+      N_dep_kg_ha_yr_change <- tryCatch({
+            if (nrow(annual_stats) >= 2) {
+              coef(mblm(mean_N_dep_kg_ha_yr ~ year, data = annual_stats))[2]
+            } else {
+              NA
+            }
+          }, error = function(e) NA)
+
+      S_dep_kg_ha_yr_var <- robust_variation(annual_stats$mean_S_dep_kg_ha_yr)
+      N_dep_kg_ha_yr_var <- robust_variation(annual_stats$mean_N_dep_kg_ha_yr)
+
+      tibble(
+        mvm_id = id,
+        S_dep_kg_ha_yr_start = S_dep_kg_ha_yr_start,
+        S_dep_kg_ha_yr_change = S_dep_kg_ha_yr_change,
+        S_dep_kg_ha_yr_variation = S_dep_kg_ha_yr_var,
+        N_dep_kg_ha_yr_start = N_dep_kg_ha_yr_start,
+        N_dep_kg_ha_yr_change = N_dep_kg_ha_yr_change,
+        N_dep_kg_ha_yr_variation = N_dep_kg_ha_yr_var
+      )
+    }, error = function(e) {
+      message(paste("Error processing mvm_id:", unique(df$mvm_id), "-", e$message))
+      return(NULL)
+    })
+  })
+
+ emep.trend
+
+
+
+emep.sls <- emep.2  %>%
+  group_by(mvm_id) %>%
+  group_split() %>%
+  map_dfr(function(df) {
+    tryCatch({
+      id <- unique(df$mvm_id)
+
+      # --- Start period (1990–1994) ---
+      start_period <- filter(df, year >= 1990, year <= 1994)
+
+      S_dep_kg_ha_yr_start <- mean(start_period$S_dep_mean_kg_ha_yr, na.rm = TRUE)
+      N_dep_kg_ha_yr_start <- mean(start_period$N_dep_mean_kg_ha_yr, na.rm = TRUE)
+
+      # --- Change period (1995–2024) ---
+      annual_stats <- filter(df, year >= 1995, year <= 2024)%>%
+      mutate(
+        S_dep_kg_ha_yr = ifelse(is.finite(S_dep_mean_kg_ha_yr), S_dep_mean_kg_ha_yr, NA),
+        N_dep_kg_ha_yr = ifelse(is.finite(N_dep_mean_kg_ha_yr), N_dep_mean_kg_ha_yr, NA)) %>%
+        group_by(year) %>%
+        
+        summarise(
+          mean_S_dep_kg_ha_yr = mean(S_dep_kg_ha_yr, na.rm = TRUE),
+          mean_N_dep_kg_ha_yr = mean(N_dep_kg_ha_yr, na.rm = TRUE),
+          .groups = "drop"
+        )
+
+
+      S_dep_kg_ha_yr_change <- tryCatch({
+            if (nrow(annual_stats) >= 2) {
+              coef(mblm(mean_S_dep_kg_ha_yr ~ year, data = annual_stats))[2]
+            } else {
+              NA
+            }
+          }, error = function(e) NA)
+
+      N_dep_kg_ha_yr_change <- tryCatch({
+            if (nrow(annual_stats) >= 2) {
+              coef(mblm(mean_N_dep_kg_ha_yr ~ year, data = annual_stats))[2]
+            } else {
+              NA
+            }
+          }, error = function(e) NA)
+
+      S_dep_kg_ha_yr_var <- robust_variation(annual_stats$mean_S_dep_kg_ha_yr)
+      N_dep_kg_ha_yr_var <- robust_variation(annual_stats$mean_N_dep_kg_ha_yr)
+
+      tibble(
+        mvm_id = id,
+        S_dep_kg_ha_yr_start = S_dep_kg_ha_yr_start,
+        S_dep_kg_ha_yr_change = S_dep_kg_ha_yr_change,
+        S_dep_kg_ha_yr_variation = S_dep_kg_ha_yr_var,
+        N_dep_kg_ha_yr_start = N_dep_kg_ha_yr_start,
+        N_dep_kg_ha_yr_change = N_dep_kg_ha_yr_change,
+        N_dep_kg_ha_yr_variation = N_dep_kg_ha_yr_var
+      )
+    }, error = function(e) {
+      message(paste("Error processing mvm_id:", unique(df$mvm_id), "-", e$message))
+      return(NULL)
+    })
+  })
+
+emep.sls
+```
+
+## Chemistry as spatial variable
+
+trend
+```{r}
+library(dplyr)
+library(purrr)
+library(lubridate)
+library(mblm)
+
+chem.trend <- df.chem.trend %>%
+  mutate(year = year(sampling_date)) %>%
+  filter(month(sampling_date) %in% c(9,10,11)) %>%
+  mutate(
+    toc_mg_l_c = log10(toc_mg_l_c),
+    totn = log10(totn),
+    totp = log10(totp),
+    BC_mekv_l = log10(BC_mekv_l),
+    DIN_mg_l_n = log10(DIN_mg_l_n),
+    cl_mg_l = log10(cl_mg_l),
+    so4_mol = log10(so4_mol)
+  ) %>%
+  group_by(mvp_id) %>%
+  group_split() %>%
+  map_dfr(function(df) {
+    tryCatch({
+      id <- unique(df$mvm_id)
+
+      # --- Start period (2008–2012) ---
+      start_period <- filter(df, year >= 2008, year <= 2012)
+
+      toc_start   <- mean(start_period$toc_mg_l_c, na.rm = TRUE)
+      totn_start  <- mean(start_period$totn, na.rm = TRUE)
+      totp_start  <- mean(start_period$totp, na.rm = TRUE)
+      ANC_start   <- mean(start_period$ANC_mekv_l, na.rm = TRUE)
+      BC_start    <- mean(start_period$BC_mekv_l, na.rm = TRUE)
+      DIN_start   <- mean(start_period$DIN_mg_l_n, na.rm = TRUE)
+      alk_acid_start <- mean(start_period$alk_acid_mmol, na.rm = TRUE)
+      absf_start  <- mean(start_period$absf, na.rm = TRUE)
+      pH_start    <- mean(start_period$pH, na.rm = TRUE)
+      ec20_start  <- mean(start_period$ec20_µS_cm, na.rm = TRUE)
+      cl_start    <- mean(start_period$cl_mg_l, na.rm = TRUE)
+      so4_start   <- mean(start_period$so4_mol, na.rm = TRUE)
+
+      # --- Change period (2013–2024) ---
+      annual_stats <- filter(df, year >= 2013, year <= 2024) %>%
+        group_by(year) %>%
+        summarise(
+          mean_toc       = mean(toc_mg_l_c, na.rm = TRUE),
+          mean_totn      = mean(totn, na.rm = TRUE),
+          mean_totp      = mean(totp, na.rm = TRUE),
+          mean_ANC       = mean(ANC_mekv_l, na.rm = TRUE),
+          mean_BC        = mean(BC_mekv_l, na.rm = TRUE),
+          mean_DIN       = mean(DIN_mg_l_n, na.rm = TRUE),
+          mean_cl        = mean(cl_mg_l, na.rm = TRUE),
+          mean_so4       = mean(so4_mol, na.rm = TRUE),
+          mean_alk_acid  = mean(alk_acid_mmol, na.rm = TRUE),
+          mean_absf      = mean(absf, na.rm = TRUE),
+          mean_pH        = mean(pH, na.rm = TRUE),
+          mean_ec20      = mean(ec20_µS_cm, na.rm = TRUE),
+          .groups = "drop"
+        )
+
+
+      # Theil–Sen slopes for changes
+
+      toc_change       <- slope_or_na("mean_toc", annual_stats)
+      totn_change      <- slope_or_na("mean_totn", annual_stats)
+      totp_change      <- slope_or_na("mean_totp", annual_stats)
+      ANC_change       <- slope_or_na("mean_ANC", annual_stats)
+      BC_change        <- slope_or_na("mean_BC", annual_stats)
+      DIN_change       <- slope_or_na("mean_DIN", annual_stats)
+      cl_change        <- slope_or_na("mean_cl", annual_stats)
+      so4_change       <- slope_or_na("mean_so4", annual_stats)
+      alk_acid_change  <- slope_or_na("mean_alk_acid", annual_stats)
+      absf_change      <- slope_or_na("mean_absf", annual_stats)
+      pH_change        <- slope_or_na("mean_pH", annual_stats)
+      ec20_change      <- slope_or_na("mean_ec20", annual_stats)
+      
+      # Variation calculations
+      toc_var       <- robust_variation(annual_stats$mean_toc)
+      totn_var      <- robust_variation(annual_stats$mean_totn)
+      totp_var      <- robust_variation(annual_stats$mean_totp)
+      ANC_var       <- robust_variation(annual_stats$mean_ANC)
+      BC_var        <- robust_variation(annual_stats$mean_BC)
+      DIN_var       <- robust_variation(annual_stats$mean_DIN)
+      cl_var        <- robust_variation(annual_stats$mean_cl)
+      so4_var       <- robust_variation(annual_stats$mean_so4)
+      alk_acid_var  <- robust_variation(annual_stats$mean_alk_acid)
+      absf_var      <- robust_variation(annual_stats$mean_absf)
+      pH_var        <- robust_variation(annual_stats$mean_pH)
+      ec20_var      <- robust_variation(annual_stats$mean_ec20)
+
+
+      tibble(
+        mvm_id = id,
+        toc_start, toc_change, toc_var,
+        totn_start, totn_change, totn_var,
+        totp_start, totp_change, totp_var,
+        ANC_start, ANC_change, ANC_var,
+        BC_start, BC_change, BC_var,
+        DIN_start, DIN_change, DIN_var,
+        cl_start, cl_change, cl_var,
+        so4_start, so4_change, so4_var,
+        alk_acid_start, alk_acid_change, alk_acid_var,
+        absf_start, absf_change, absf_var,
+        pH_start, pH_change, pH_var,
+        ec20_start, ec20_change, ec20_var
+      )
+
+      
+
+    }, error = function(e) {
+      message(paste("Error processing mvm_id:", unique(df$mvm_id), "-", e$message))
+      return(NULL)
+    })
+  })
+
+
+```
+
+
+```{r}
+chem.sls <- df.chem.sls  %>%
+  # filter(mvm_id %in% c(1568,1578,2019, 2029, 27051, 40949,39865, 40370))%>% 
+  mutate(year = year(sampling_date)) %>%
+  filter(month(sampling_date) %in% c(8,9,10,11,12,1)) %>%
+  mutate(
+    toc_mg_l_c = log10(toc_mg_l_c),
+    totn = log10(totn),
+    totp = log10(totp),
+    BC_mekv_l = log10(BC_mekv_l),
+    DIN_mg_l_n = log10(DIN_mg_l_n),
+    cl_mg_l = log10(cl_mg_l),
+    so4_mol = log10(so4_mol),
+    year = year(sampling_date)) %>%
+  group_by(mvp_id) %>%
+  group_split() %>%
+  map_dfr(function(df) {
+    tryCatch({
+      id <- unique(df$mvp_id)
+
+      # --- Start period (2008–2012) ---
+      start_period <- filter(df, year >= 2008, year <= 2012)
+
+      toc_start        <- get_mean_or_first_pre2018(df, "toc_mg_l_c")
+      totn_start       <- get_mean_or_first_pre2018(df, "totn")
+      totp_start       <- get_mean_or_first_pre2018(df, "totp")
+      ANC_start        <- get_mean_or_first_pre2018(df, "ANC_mekv_l")
+      BC_start         <- get_mean_or_first_pre2018(df, "BC_mekv_l")
+      DIN_start        <- get_mean_or_first_pre2018(df, "DIN_mg_l_n")
+      alk_acid_start   <- get_mean_or_first_pre2018(df, "alk_acid_mmol")
+      absf_start       <- get_mean_or_first_pre2018(df, "absf")
+      pH_start         <- get_mean_or_first_pre2018(df, "pH")
+      ec20_start       <- get_mean_or_first_pre2018(df, "ec20_µS_cm")
+      cl_start         <- get_mean_or_first_pre2018(df, "cl_mg_l")
+      so4_start        <- get_mean_or_first_pre2018(df, "so4_mol")
+
+
+
+
+      
+
+      toc_change        <- get_variable_change(df, "toc_mg_l_c")
+      totn_change       <- get_variable_change(df, "totn")
+      totp_change       <- get_variable_change(df, "totp")
+      ANC_change        <- get_variable_change(df, "ANC_mekv_l")
+      BC_change         <- get_variable_change(df, "BC_mekv_l")
+      DIN_change        <- get_variable_change(df, "DIN_mg_l_n")
+      alk_acid_change   <- get_variable_change(df, "alk_acid_mmol")
+      absf_change       <- get_variable_change(df, "absf")
+      pH_change         <- get_variable_change(df, "pH")
+      ec20_change       <- get_variable_change(df, "ec20_µS_cm")
+      cl_change         <- get_variable_change(df, "cl_mg_l")
+      so4_change        <- get_variable_change(df, "so4_mol")
+
+
+        tibble(
+  mvm_id = id,
+  toc_start, toc_change,
+  totn_start, totn_change,
+  totp_start, totp_change,
+  ANC_start, ANC_change,
+  BC_start, BC_change,
+  DIN_start, DIN_change,
+  cl_start, cl_change,
+  so4_start, so4_change,
+  alk_acid_start,alk_acid_change,
+  absf_start,absf_change,
+  pH_start,pH_change,
+  ec20_start, ec20_change
+)
+    }, error = function(e) {
+      message(paste("Error processing mvm_id:", unique(df$mvm_id), "-", e$message))
+      return(NULL)
+    })
+  })
+
+library(vtable)
+chem.sls %>% sumtable()
+
+chem.sls %>%
+  filter(if_any(everything(), is.na))
+
+df.chem.sls %>% filter(mvm_id ==107)
+```
+  
+## NDVI
+
+Error processing ID: 35457 - Must group by variables found in `.data`.
+
+```{r}
+
+file_list <- list.files(path = folder_NDVI, pattern = "*\\.csv$", full.names = FALSE)
+
+file_ids <- gsub("^NDVI_(\\d+)\\.csv$", "\\1", file_list)
+missing_ids <- setdiff(id.all, file_ids)
+
+
+
+# --- Safely process each ID ---
+NDVI.all <- map_dfr(seq_along(id.all), function(i) {
+  id <- id.all[i]
+  message(sprintf("Processing ID %s (%d of %d)", id, i, length(id.all)))
+  
+  tryCatch({
+    csv.path <- paste0(folder_NDVI,"\\NDVI_", id, ".csv")
+    NDVI <- read_csv(csv.path, show_col_types = FALSE) %>%
+      filter(year > 2007, year < 2025) %>%
+  mutate(
+    sampling_date = as.Date(sprintf("%04d-%02d-01", year, as.integer(month)))
+  ) %>%
+  group_by(year, mvm_id) %>%
+  # summarize(NDVI = max(NDVI_median, na.rm = TRUE), .groups = "drop")
+    summarize(
+  NDVI = if (all(is.na(NDVI_median))) NA_real_ else max(NDVI_median, na.rm = TRUE),
+  .groups = "drop"
+)
+
+    # --- Start period ---
+    start_period <- filter(NDVI, year >= 2008, year <= 2012)
+
+    ndvi_start <- mean(start_period$NDVI, na.rm = TRUE)
+
+
+    annual_stats <- NDVI %>% filter(year >= 2013, year <= 2024)
+
+    ndvi_change       <- slope_or_na("NDVI", annual_stats)
+
+
+    ndvi_var <- robust_variation(annual_stats$NDVI)
+
+
+    tibble(
+      mvm_id =as.numeric( id),
+      ndvi_start = ndvi_start,
+      ndvi_change = ndvi_change,
+      ndvi_variation = ndvi_var,
+
+    )
+  }, error = function(e) {
+    message(paste("Error processing ID:", id, "-", e$message))
+    return(NULL)  # Skip this ID
+  })
+})
+
+
+NDVI.all%>%
+  mutate(across(everything(), ~ifelse(is.na(.), 0, .))) %>% write_csv(file_NDVI)
+
+NDVI.all <- read_csv(file_NDVI)
+NDVI.all
+```
+
+
+## Peat and ditches
+
+```{r}
+peat <- read.csv(file_peat) %>% select(-ditch_density_m_m2)
+peat
+```
+
+
+
+## Combine everything
+
+
+```{r}
+drivers.sls <- chem.sls %>% mutate(mvm_id = as.integer(mvm_id)) %>%
+  left_join(coordinates,     by = "mvm_id") %>%
+  left_join(soil_depth, by ="mvm_id") %>%
+  left_join(emep.sls,     by = "mvm_id") %>%
+  left_join(discharge,    by = "mvm_id")  %>%
+  left_join(HK,           by = "mvm_id") %>%
+  left_join(climate.all,  by = "mvm_id") %>%
+  left_join(general,      by = "mvm_id") %>%
+  left_join(NMD,          by = "mvm_id") %>%
+  left_join(NDVI.all%>% mutate(mvm_id = as.numeric(mvm_id)),     by = "mvm_id") %>%
+  left_join(peat%>% rename(peat_pct_mineralsoil = peat_pct_Mineraljord, peat_pct_peat = peat_pct_Torv_total), by = "mvm_id") %>% mutate(ditch_density_km_km2 = total_ditch_length/ area_m2 * 1000) %>% select(-c(peat_pct_Vatten, total_ditch_length))
+
+drivers.sls
+
+drivers.trend <- chem.trend %>%
+  left_join(coordinates,     by = "mvm_id") %>%
+  left_join(emep.trend,     by = "mvm_id") %>%
+  left_join(discharge,    by = "mvm_id") %>%
+  left_join(soil_depth, by ="mvm_id") %>%
+  left_join(HK,           by = "mvm_id") %>%
+  left_join(climate.all,  by = "mvm_id") %>%
+  left_join(general,      by = "mvm_id") %>%
+  left_join(NMD,          by = "mvm_id") %>%
+  left_join(NDVI.all%>% mutate(mvm_id = as.numeric(mvm_id)),     by = "mvm_id") %>%
+  left_join(peat %>% rename(peat_pct_mineralsoil = peat_pct_Mineraljord, peat_pct_peat = peat_pct_Torv_total), by = "mvm_id") %>% mutate(ditch_density_km_km2 = total_ditch_length/ area_m2 * 1000) %>% select(-c(peat_pct_Vatten, total_ditch_length))
+
+drivers.trend
+```
+
+
+# Drivers
+
+```{r}
+
+cols_to_front <- c("mvm_id", "stationname", "x_e_koord","y_n_koord")
+drivers.sls%>%
+  select(all_of(cols_to_front), everything()) %>% write.csv(file_drivers.sls)
+
+drivers.trend %>%
+  select(all_of(cols_to_front), everything())%>% write.csv(file_drivers.trend)
+
+```
+
+
+
+
+
