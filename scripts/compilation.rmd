@@ -7,60 +7,62 @@
 library(tidyverse)
 library(readxl)
 
-setwd(r"(C:\Users\anlr0006\repos-win\DOC_catchments)")
+setwd(r"data") # your data folder, here it is the data folder inside the repository to match file nam,es to the files in the repository
 
 ####################### Input ##################################
 
-file_shp <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\01_data\02_raw_data\catchments\corrected_merged\corrected_merged.shp)" # replace with your location of catchment files
+file_shp <- r"(merged.shp)" # replace with your location of catchment files
 
 # Chemistry
-file_chemistry <- r"(C:\Users\anlr0006\repos-win\DOC_catchments\test_results\chemistry\chem_combined.csv)" # change to your chem combined file, the output of get_water_chem.r
-file_chemistry_processed <-r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\01_data\03_processed_data\chemistry\water_chem_all_2025.csv)"   # replace with your location of your processed water chem file (will be created in below chunk)
+file_chemistry <- r"(chem_combined.csv)" # change to your chem combined file, the output of get_water_chem.r
+file_chemistry_processed <-r"(etc/water_chem_all_2025.csv)"   # replace with your location of your processed water chem file (will be created in below chunk)
 
 # Climate
-folder_climate =  "\\\\storage.slu.se\\Home$\\anlr0006\\My Documents\\04_Projects\\11_Lakes\\01_data\\03_processed_data\\inter_climate"
-file_climate_processed <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\etc\climate_merged.csv)"
+folder_climate =  "inter_climate" # folder from climate python script
+file_climate_processed <- r"(etc\climate_merged.csv)"
 
 # Spatial Mapped Data
-NMD_file1 <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\01_data\02_raw_data\NMD\all_outputs_trend_and_survey_lakes.xlsx)"
-NMD_file2 <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\01_data\01_received\all_outputs_LakeSurvey_aro251001.xlsx)"
-file_HK <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\etc\high_coast_ecoregions_merged.csv)"
+# the NMD files are the only files not provided individually, replace these with your own extraction of the NMD
+NMD_file1 <- r"(all_outputs_trend_and_survey_lakes.xlsx)" 
+NMD_file2 <- r"(all_outputs_LakeSurvey_aro251001.xlsx)"
+
+file_HK <- r"(etc\high_coast_ecoregions_merged.csv)"
 
 # Discharge
-file_discharge.omdrev <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\etc\omdrev_discharge.csv)"
-file_discharge.trend <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\etc\trendlakes_discharge.csv)"
-file_discharge.combined <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\etc\discharge_merged.csv)"
+file_discharge.omdrev <- r"(etc\omdrev_discharge.csv)"
+file_discharge.trend <- r"(etc\trendlakes_discharge.csv)"
+file_discharge.combined <- r"(etc\discharge_merged.csv)"
 
-# Deposition EMEP
-emep_file.1 <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\etc\emep_trend.csv)"
-emep_file.2 <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\etc\\emep_omdrev.csv)"
+# Deposition EMEP # result from deposition python script
+emep_file.1 <- r"(etc\emep_trend.csv)"
+emep_file.2 <- r"(etc\emep_omdrev.csv)"
 
 # NDVI
 
-folder_NDVI <-  r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\01_data\02_raw_data\NDVI)"
-file_NDVI <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\etc\NDVI_merged.csv)"
+folder_NDVI <-  r"(NDVI)" # not provided 
+file_NDVI <- r"(etc\NDVI_merged.csv)"
 
 # Peat and ditches
-file_peat <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\etc\peat_ditches.csv)"
+file_peat <- r"(etc\peat_ditches.csv)"
 
 # Soil depth
-soil_depth_file <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\etc\soil_depth.csv)"
+soil_depth_file <- r"(etc\soil_depth.csv)"
 
 
 ############################ RESULTS ##########################################
 
 # Chemistry Time series
 
-file_chemistry.sls <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\chemistry_SLS.csv)" 
+file_chemistry.sls <- r"(chemistry_SLS.csv)" 
 
-file_chemistry.trend <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\chemistry_trend.csv)"
+file_chemistry.trend <- r"(chemistry_trend.csv)"
 
 
 # Drivers
 
-file_drivers.sls <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\characteristics_sls.csv)" 
+file_drivers.sls <- r"(characteristics_sls.csv)" 
 
-file_drivers.trend <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\03_publications\SND\data\characteristics_trend.csv)" 
+file_drivers.trend <- r"(characteristics_trend.csv)" 
 
 ```
 
@@ -213,10 +215,10 @@ library(lubridate)
 
 
 # Comment out if you have just one chemistry file
-# file_chemistry1 <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\01_data\02_raw_data\chemistry\water_chem_combined_catchments_2025.csv)" 
-# file_chemistry2 <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\01_data\02_raw_data\chemistry\water_chem_combined_catchments_post_2025.csv)" 
+# file_chemistry1 <- filepath
+# file_chemistry2 <- filepath
 # 
-# file_chemistry3 <- r"(\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\01_data\02_raw_data\chemistry\water_chem_combined_catchments_pre_2025.csv)"
+# file_chemistry3 <- filepath
 # 
 # df.chem <- read.csv(file_chemistry1) %>% bind_rows(read.csv(file_chemistry2)) %>% bind_rows(read.csv(file_chemistry3)) %>%
 #   distinct(.keep_all = TRUE) %>% as_tibble() %>% select(-c(X))
