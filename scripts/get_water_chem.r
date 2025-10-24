@@ -14,7 +14,7 @@ mvm_ids <- st_read( "data/test.shp")$id
 
 ## load set up variables and library for accessing the API
 
-my.token <- "PUJD93023KAS943HD"
+my.token <- "fill in your token"
 
 
 
