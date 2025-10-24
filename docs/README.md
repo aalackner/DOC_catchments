@@ -30,7 +30,7 @@ While some input data is downloaded as part of the script, many scripts require,
 
 ## Environments 
 
-All the python scripts run on a venv or conda env based on the requirements_py.txt file. Download of the water chemistry data is in R, instructions are specified in the [section on water chemistry](#water-chemistry).  These can be installed using: 
+All the python scripts run on a venv or conda env based on the requirements_py.txt file. Download of the water chemistry data and compilation of data are in R, so this environment is not needed, instructions for R are specified in the [section on water chemistry](#water-chemistry).  These can be installed using: 
 
 **Conda**
 
@@ -53,16 +53,13 @@ pip install -r requirements_py.txt
 
 ### R
 
-Download of the water chemistry data and aggregation of all the data into a single file is in R. For this you can us either a renv or a conda env 
+Download of the water chemistry data and aggregation of all the data into a single file is in R. 
+To ensure the installation of the correct packages you can use base R and the file installed_packages_r.csv.
 
-```bash
-conda create -n r-env --file requirements_r.txt
+```r
+pkgs <- read.csv("installed_packages_r.csv")
+install.packages(pkgs$Package)
 ```
-
-or 
-
-R-env instructions.... Or at least a state of the script something something...
-
 
 ___
 
@@ -380,7 +377,9 @@ python scripts/discharge.py  -o  "test_results/runoff" -id "id" -f "2025-data.cs
 
 ## Water Chemistry
 
+
 get_water_chem.r
+
 
 **args**
 
