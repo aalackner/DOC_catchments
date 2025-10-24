@@ -16,9 +16,9 @@ This repository includes the extractions various catchment characteristics withi
 |[High coast and ecogegions](#high-coast-and-ecoregions)|High_coast_ecoregions.py|% of catchemnt below highest coast line and outlet ecoregion|highest coast line, Swedish ecoregions|
 |[Peat and Ditches](#peat-and-ditches)|dd_peat.py|ditch density, % peat|SLU ditch map, SLU peat map|
 |[NDVI](#ndvi)|ndvi.py|monthly summer NDVI timeseries|Landsat 8-Day NDVI composite*|
-|[Runoff](#runoff)|||
-|[Water chemistry](#water-chemistry)|||
-|[Compilation](#compilation)|||
+|[Runoff](#runoff)|get_SVAR_id.py & discharge|S-HYPE daily runoff|SMHI S-HYPE data|
+|[Water chemistry](#water-chemistry)|get_water_chem.r|water chemistry samples for all stations|MVM database*|
+|[Compilation](#compilation)|compilation.rmd|catchment characteristics and timeseries of water chemistry|output of above scripts|
 
 *Download via API included in the script.   
 
@@ -295,21 +295,21 @@ python scripts/ndvi.py  -c "data/test.shp"  -o  "test_results/ndvi" -id "id" -sy
 
 ## Runoff
 
-To get runoff for each catchment, it is necessary to complete three seperate steps: First use get_SVARO_id.py to generate ARO_UUID ids that can then be entered into [NADIA](https://vattenwebb.smhi.se/nadia/) to download the discharge needed for discharge.py to generate runoff for each catchment based on [SMHI's S-HYPE data](https://www.smhi.se/data/sjoar-och-vattendrag/vattenwebb/om-tjanster-i-vattenwebb/data-for-delavrinningsomraden---sotvatten). 
+To get runoff for each catchment, it is necessary to complete three seperate steps: First use get_SVAR_id.py to generate ARO_UUID ids that can then be entered into [NADIA](https://vattenwebb.smhi.se/nadia/) to download the discharge needed for discharge.py to generate runoff for each catchment based on [SMHI's S-HYPE data](https://www.smhi.se/data/sjoar-och-vattendrag/vattenwebb/om-tjanster-i-vattenwebb/data-for-delavrinningsomraden---sotvatten). 
 
-get_SVARO_id.py > NADIA (manually) > discharge.py
+get_SVAR_id.py > NADIA (manually) > discharge.py
 
-### get_SVARO_id.py
+### get_SVAR_id.py
 
 **args:** 
 
 - -c    catchment shapefile (can be .zip containing shapefile) 
 - -o    output folder
-- -svaro svaro delavrinningsområde file .shp or .zip, if path is given that does not yet exist, file will be downloaded from SMHI as .zip.
+- -svar SVAR delavrinningsområde file .shp or .zip, if path is given that does not yet exist, file will be downloaded from SMHI as .zip.
 - -id   id variable as str, default: "mvm_id"
 - -x    column name in shapefile of catchments for x coordinate of outlet 
 - -y    column name in shapefile of catchments for y coordinate of outlet
-- -map "true" or "false" to indicate whether a map should be made of the catchments and their corresponding SVARO catchment
+- -map "true" or "false" to indicate whether a map should be made of the catchments and their corresponding SVAR catchment
 
 **Dependencies:**
 
@@ -336,7 +336,7 @@ catchments_svar.html: A map of the catchemnts, stations, and corresponding SVAR2
 **Example:**
 
 ```bash
-python scripts/get_SVARO_id.py  -c "data/test.shp"  -o  "test_results/runoff" -id "id" -svaro "input\SMHI\SVAR2022_delavrinningsomraden.zip" -map "true"
+python scripts/get_SVAR_id.py  -c "data/test.shp"  -o  "test_results/runoff" -id "id" -svar "input\SMHI\SVAR2022_delavrinningsomraden.zip" -map "true"
 ```
 
 ### NADIA
@@ -353,7 +353,7 @@ Using NADIA is necessary to go on with calculating runoff for each catchment. Fo
 
 **args:** 
 
-- -o    output folder (same as get_SVARO_id.py) 
+- -o    output folder (same as get_SVAR_id.py) 
 - -id   id variable as str, default: "mvm_id"
 - -f    filename of nadia output, should be placed inside -o, default: "2025-data.csv" 
 
@@ -363,7 +363,7 @@ geopandas, re, pandas
 
 **Input:** 
 
-Output of [get_SVARO_id.py](#get_svaro_idpy), cats_svaro.feather, and [NADIA](#nadia) output in output folder.  
+Output of [get_SVAR_id.py](#get_svar_idpy), cats_svaro.feather, and [NADIA](#nadia) output in output folder.  
 
 
 **Output:** 
@@ -374,7 +374,7 @@ The final output for this script is daily_discharge.csv, a csv with daily modell
 **Example:**
 
 ```bash
-python scripts/discharge.py  -c "data/test.shp"  -o  "test_results/runoff" -id "id" -f "2025-data.csv"
+python scripts/discharge.py  -o  "test_results/runoff" -id "id" -f "2025-data.csv"
 ```
 
 
@@ -412,7 +412,15 @@ The main output is 'water_chem_combined.csv', a csv containing water chemistry s
 Rscript scripts/get_water_chem.r >> log/chem.log
 ```
 
-## Compilation
+## Compilation/processing
 
+**compilation.rmd** takes the files produced by the processes described above and runs through post processing to compile timeseries of water chemistry and a summary file of catchemt characteristics. 
 
+The file can be used in partto process different catchmnet characteristics or the whole datset. File paths need to be adjusted with the script.
+
+**Output:**
+
+There are 2 main types of output files: water chemistry time series, and catchemnt characteristics. 
+
+*Inside compilation.rmd catchemnt characteristics are called "drivers". 
 
