@@ -57,7 +57,7 @@ overview <- data.frame(
 for (id in mvm_ids){
   
   full.samples <- get_samples(folder, id) # Only needed if JSON has never been downloaded
-  # full.samples <- fromJSON(file.path(folder, "JSON", paste0(id, ".JSON")))
+  full.samples <- fromJSON(file.path(folder, "JSON", paste0(id, ".JSON")))
   csv.path <- file.path(folder, "CSV", paste0(id, ".csv"))
   
   

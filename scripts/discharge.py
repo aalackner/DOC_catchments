@@ -26,12 +26,12 @@ import geopandas as gpd
 import geopandas as gpd
 import os
 
-feather_path = os.path.join(output_folder, "cats_svaro.feather")
+feather_path = os.path.join(output_folder, "cats_svar2022.feather")
 #os.chdir("..")
 # load catchments
 gdf_catch = gpd.read_feather(feather_path)
 
-
+print(gdf_catch[id_var].nunique())
 
 #%%
 import pandas as pd
@@ -139,7 +139,7 @@ for id in mvm_ids:
         local_q.loc[:,'q'] = local_q.loc[:,'Lokal vattenföring'] * weight
     else:
         local_q.loc[:,'q'] = local_q.loc[:,'Total stationskorrigerad vattenföring'] * weight
-    discharge = pd.concat([discharge, local_q[[id_var, 'date','q', 'Subid']]])
+    discharge = pd.concat([discharge, local_q[[id_var, 'date','q', 'Subid', 'area_m2']]])
 
 
 discharge = discharge.merge(
@@ -156,8 +156,8 @@ duplicates = discharge[discharge.duplicated(subset=[id_var, 'date'], keep=False)
 # Ensure the directory exists
 
 import os
+print(discharge[id_var].nunique())
+
 
 out_file = os.path.join(output_folder, "daily_discharge.csv")
 discharge.to_csv(out_file, index = False)
-
-# %%
