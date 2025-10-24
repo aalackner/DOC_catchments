@@ -1,7 +1,7 @@
 $cats = ".\data\corrected_merged.shp"
 $id = "mvm_id"
 
-# Collected input file 
+# Collected input file rename finle paths according to your own locations
 $ditchdatabase = ".\input\Dikeskarta\mosaic_ditches.gdb"
 $peat = ".\input\Torvkarta\Klassad_torvkarta\ClassifiedPeatMap.tif"
 
@@ -10,10 +10,10 @@ $jennings = ".\input\jennings\jennings_et_al_2018_file4_temp50_raster.tif"
 
 $emep = ".\input\EMEP\data" 
 
-$hk = "\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\09_General\01_GIS\HK.shp"
-$eco = "\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\09_General\01_GIS\ekoreg_2006_sweref99.shp"
+$hk = ".\input\HK.shp"
+$eco = ".\input\ekoreg_2006_sweref99.shp"
 
-$svar = "\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\09_General\01_GIS\SVAR2022_delavrinningsomraden.zip"
+$svar = ".\input\SVAR2022_delavrinningsomraden.zip"
 $x = "x_utlopp"
 $y = "y_utlopp"
 
