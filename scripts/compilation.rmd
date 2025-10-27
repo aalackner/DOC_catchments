@@ -7,7 +7,7 @@
 library(tidyverse)
 library(readxl)
 
-setwd(r"data") # your data folder, here it is the data folder inside the repository to match file nam,es to the files in the repository
+setwd(r"(data)") # your data folder, here it is the data folder inside the repository to match file nam,es to the files in the repository
 
 ####################### Input ##################################
 
@@ -22,9 +22,9 @@ folder_climate =  "inter_climate" # folder from climate python script
 file_climate_processed <- r"(etc\climate_merged.csv)"
 
 # Spatial Mapped Data
-# the NMD files are the only files not provided individually, replace these with your own extraction of the NMD
-NMD_file1 <- r"(all_outputs_trend_and_survey_lakes.xlsx)" 
-NMD_file2 <- r"(all_outputs_LakeSurvey_aro251001.xlsx)"
+# the generation of NMD and general files are the only ones not provided by the code so make sure you adapt tp your own files containing the information
+file_NMD <- r"(etc\NMD_merged.csv)" 
+file_general <- r"(etc\general_merged.csv)"
 
 file_HK <- r"(etc\high_coast_ecoregions_merged.csv)"
 
@@ -889,34 +889,18 @@ climate.all %>% sumtable()
 ```
 
 
-# Elevation
+## General
 
 
 ```{r}
-library(readxl)
-
-general1 <- read_excel(NMD_file1, sheet = "aro_survey_and_trend_lakes_Merg") %>% as_tibble() %>% transmute(mvm_id = as.numeric(mvmid), 
-                      lake_area_m2 = na_if(lake_area_, 0),
-                      elevation_m = elev_utl,
-                      area_m2 = Shape_Area) # %>% select(-all_of(c("Unnamed: 0","...1" , "area_ARO_m2"    , "area_ARO_km2"  )))
-
-general2 <- read_excel(NMD_file2, sheet = "aro_omdrev_AnnaL251001") %>% as_tibble() %>% transmute(mvm_id = as.numeric(mvmid), 
-                      lake_area_m2 = na_if(lake_area_, 0),
-                      elevation_m = elev_utl,
-                      area_m2 = Shape_Area) # %>% select(-all_of(c("Unnamed: 0","...1" , "area_ARO_m2"    , "area_ARO_km2"  )))
-
-general <- general1 %>% filter(!mvm_id %in% general2$mvm_id) %>%  bind_rows(general2)
-
-
-general
+general <- read_csv(file_general)
 ```
 
 ## NMD
 
 ```{r}
-library(readxl)
 
-NMD1 <- read_excel(NMD_file1, sheet = "nmd") %>% as_tibble() %>% select(-all_of(c("Unnamed: 0","...1" , "area_ARO_m2"    , "area_ARO_km2"  ))) %>% transmute(mvm_id = mvmid,
+NMD <- read_csv(file_NMD) %>% as_tibble()  %>% transmute(mvm_id = mvm_id,
                   `forest_wetland` = rowSums(select(., contains("på våtmark")), na.rm = TRUE),
                   open_wetland = `Öppen våtmark`,
                   open_water = `Sjö och vattendrag` + `Hav`,
@@ -924,16 +908,6 @@ NMD1 <- read_excel(NMD_file1, sheet = "nmd") %>% as_tibble() %>% select(-all_of(
                   semi_urban = rowSums(select(., contains("ploaterad mark")), na.rm = TRUE),
                   agriculture = `Åkermark`
                   )
-NMD2 <- read_excel(NMD_file2, sheet = "nmd") %>% as_tibble() %>% select(-all_of(c("...1" , "area_ARO_m2"    , "area_ARO_km2"  ))) %>% transmute(mvm_id = mvmid,
-                  `forest_wetland` = rowSums(select(., contains("på våtmark")), na.rm = TRUE),
-                  open_wetland = `Öppen våtmark`,
-                  open_water = `Sjö och vattendrag` + `Hav`,
-                  forest = rowSums(select(., contains("skog")), na.rm = TRUE),
-                  semi_urban = rowSums(select(., contains("ploaterad mark")), na.rm = TRUE),
-                  agriculture = `Åkermark`
-                  )
-
-NMD <- NMD1 %>% filter(!mvm_id %in% NMD2$mvm_id) %>% bind_rows(NMD2)
 NMD
 ```
 
