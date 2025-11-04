@@ -7,14 +7,14 @@
 library(tidyverse)
 library(readxl)
 
-setwd(r"(data)") # your data folder, here it is the data folder inside the repository to match file nam,es to the files in the repository
+folder <- r"(\SND\data)" # your data folder, here it is the data folder inside the repository to match file nam,es to the files in the repository
 
 ####################### Input ##################################
 
-file_shp <- r"(merged.shp)" # replace with your location of catchment files
+file_shp <-  r"(merged.shp)" # r"(merged.shp)" # replace with your location of catchment files
 
 # Chemistry
-file_chemistry <- r"(chem_combined.csv)" # change to your chem combined file, the output of get_water_chem.r
+file_chemistry <- r"(etc/chem_combined.csv)" # change to your chem combined file, the output of get_water_chem.r
 file_chemistry_processed <-r"(etc/water_chem_all_2025.csv)"   # replace with your location of your processed water chem file (will be created in below chunk)
 
 # Climate
@@ -22,16 +22,16 @@ folder_climate =  "inter_climate" # folder from climate python script
 file_climate_processed <- r"(etc\climate_merged.csv)"
 
 # Spatial Mapped Data
-# the generation of NMD and general files are the only ones not provided by the code so make sure you adapt tp your own files containing the information
+# the generation of NMD and general files are the only ones not provided by the code so make sure you adapt to your own files containing the information
 file_NMD <- r"(etc\NMD_merged.csv)" 
 file_general <- r"(etc\general_merged.csv)"
 
 file_HK <- r"(etc\high_coast_ecoregions_merged.csv)"
 
 # Discharge
-file_discharge.omdrev <- r"(etc\omdrev_discharge.csv)"
-file_discharge.trend <- r"(etc\trendlakes_discharge.csv)"
-file_discharge.combined <- r"(etc\discharge_merged.csv)"
+file_discharge.omdrev <- r"(etc\omdrev_runoff.csv)"
+file_discharge.trend <- r"(etc\trendlakes_runoff.csv)"
+file_discharge.combined <- r"(etc\runoff_merged.csv)"
 
 # Deposition EMEP # result from deposition python script
 emep_file.1 <- r"(etc\emep_trend.csv)"
@@ -39,14 +39,14 @@ emep_file.2 <- r"(etc\emep_omdrev.csv)"
 
 # NDVI
 
-folder_NDVI <-  r"(NDVI)" # not provided 
+folder_NDVI <-  r"(NDVI)" # not provided, fill in with folder path from ndvi.py script
 file_NDVI <- r"(etc\NDVI_merged.csv)"
 
 # Peat and ditches
-file_peat <- r"(etc\peat_ditches.csv)"
+file_peat <- r"(etc\peat_ditches_merged.csv)"
 
 # Soil depth
-soil_depth_file <- r"(etc\soil_depth.csv)"
+soil_depth_file <- r"(etc\soil_depth_merged.csv)"
 
 
 ############################ RESULTS ##########################################
@@ -172,6 +172,8 @@ Aggregating all the extracted spatial and temporal drivers to the right resoluti
 ```{r}
 library(tidyverse)
 library(sf)
+setwd(folder)
+
 shp <- sf::read_sf(file_shp)  
 
 # This line is to drop duplicate id's this is because trend and omdrev sometimes have the same lakes. 
@@ -189,7 +191,7 @@ coords <- st_coordinates(df_wgs84)
 coordinates$lon <- coords[, 1]
 coordinates$lat <- coords[, 2]
 
-coordinates
+coordinates %>% arrange(mvm_id)
 ```
 
 
@@ -208,20 +210,9 @@ Any station with only a single sample is removed.
 library(vroom)
 library(dplyr)
 library(lubridate)
+setwd(folder)
+df.chem <- read.csv(file_chemistry) %>% as_tibble() #uncomment if you only have one chemistry file
 
-
-# df.chem <- read.csv(file_chemistry) %>% as_tibble() #uncomment if you only have one chemistry file
-# df.chem
-
-
-# Comment out if you have just one chemistry file
-# file_chemistry1 <- filepath
-# file_chemistry2 <- filepath
-# 
-# file_chemistry3 <- filepath
-# 
-# df.chem <- read.csv(file_chemistry1) %>% bind_rows(read.csv(file_chemistry2)) %>% bind_rows(read.csv(file_chemistry3)) %>%
-#   distinct(.keep_all = TRUE) %>% as_tibble() %>% select(-c(X))
 
 convertible <- sapply(df.chem, function(col) {
   all(is.na(col) | !is.na(suppressWarnings(as.numeric(as.character(col)))))
@@ -260,7 +251,7 @@ df.chem <-  df.chem %>%
   ) %>%
   drop_na(toc_mg_l) %>%
   group_by(mvm_id, sampling_date, studyName) %>%
-  slice_min(order_by = abs(min_depth - 0.5), n = 1, with_ties = FALSE) %>%
+  slice_min(order_by = abs(min_depth - 0.5), n = 1, with_ties = FALSE) %>% # this is to get the sample depth closest to 0.5 m 
   ungroup() %>%
   mutate(
     # Sulfate thresholds, detection limits 
@@ -648,7 +639,8 @@ print(paste("We downloaded chemistry data from",n_stations_pre_filtering, "stati
 id_redirect <- c(
   "2638"  = "2021",
   "41634" = "40311",
-  "41534" = "40352"
+  "41534" = "40352",
+  "1038" = "28936"	
 )
 
 safe_numeric <- function(df, col) {
@@ -760,9 +752,9 @@ stations_with_enough_data <- c(108,stations_with_trend, stations_with_omdre)
 
 df.chem <- df.chem %>%
   mutate(mvp_id = recode(as.character(mvm_id), !!!id_redirect)) %>%
-  filter(mvp_id %in% stations_with_enough_data)
+  filter(mvp_id %in% stations_with_enough_data)  %>% mutate(mvm_id = as.numeric(mvp_id))%>% select(-mvp_id)
 
-df.chem
+df.chem %>% filter(mvm_id %in% c(1038,28936)) %>% select(mvm_id, sampling_date, stationname) 
 
 # rm(df.chem)
 
@@ -770,6 +762,8 @@ df.chem
 Save the preprocessed chemistry file / files. 
 ```{r}
 ## This data contains only the trend and omdrev data from these stations but it still contains all the seasons
+
+setwd(folder)
 
 df.chem %>% left_join(coordinates %>% mutate(mvm_id = as.numeric(mvm_id)))%>% write.csv(file_chemistry_processed)
 
@@ -783,9 +777,18 @@ df.chem.sls %>% left_join(coordinates%>% mutate(mvm_id = as.numeric(mvm_id)))%>%
 df.chem.trend %>% left_join(coordinates%>% mutate(mvm_id = as.numeric(mvm_id)))%>% write.csv(file_chemistry.trend)
 
 
-df.chem
+df.chem.trend %>% arrange(mvm_id)
 
 ```
+
+```{r}
+setwd(folder)
+df.chem <- read_csv(file_chemistry_processed)
+df.chem.sls <- read_csv(file_chemistry.sls)
+df.chem.trend <- read_csv(file_chemistry.trend)
+df.chem.sls
+```
+
 
 ## Climate Data
 
@@ -882,9 +885,95 @@ climate_results%>% write_csv(file_climate_processed)
 
 ```
 
+
+```{r}
+library(dplyr)
+library(purrr)
+library(mblm)
+library(readr)  # For faster reading
+library(lubridate)
+
+file_climate_long <- "etc/climate_long.csv"  
+  
+# --- Safely process each ID ---
+climate_results <- map_dfr(id.all, function(id) {
+  tryCatch({
+    csv.path <- paste0(folder_climate,"\\" , id, ".csv")
+    climate <- read_csv(csv.path, show_col_types = FALSE) %>%
+      mutate(
+        sampling_date = as.Date(date),
+        year = year(sampling_date)
+      ) %>%
+      rename(
+        snow_threshold = band_data,
+        temp = tas
+      )
+
+    # --- Start period ---
+    start_period <- filter(climate, year >= 2008, year <= 2012)
+
+    temp_start <- mean(start_period$temp, na.rm = TRUE)
+
+    pr_start <- start_period %>%
+      group_by(year) %>%
+      summarise(total_pr = sum(pr, na.rm = TRUE), .groups = "drop") %>%
+      summarise(mean_total_pr = mean(total_pr, na.rm = TRUE)) %>%
+      pull(mean_total_pr)
+
+    pr_snow_start <- start_period %>%
+      group_by(year) %>%
+      summarise(total_pr_snow = sum(pr_snow, na.rm = TRUE), .groups = "drop") %>%
+      summarise(mean_total_pr_snow = mean(total_pr_snow, na.rm = TRUE)) %>%
+      pull(mean_total_pr_snow)
+
+    # --- Change period ---
+    annual_stats <- filter(climate, year > 1990, year <= 2024) %>%
+      group_by(year) %>%
+      summarise(
+        mean_temp = mean(temp, na.rm = TRUE),
+        total_pr = sum(pr, na.rm = TRUE),
+        total_pr_snow = sum(pr_snow, na.rm = TRUE),
+        .groups = "drop"
+      )
+
+    temp_change <- if (nrow(annual_stats) >= 2) coef(mblm(mean_temp ~ year, data = annual_stats))[2] else NA
+    pr_change <- if (nrow(annual_stats) >= 2) coef(mblm(total_pr ~ year, data = annual_stats))[2] else NA
+    pr_snow_change <- if (nrow(annual_stats) >= 2) coef(mblm(total_pr_snow ~ year, data = annual_stats))[2] else NA
+
+    temp_var <- robust_variation(annual_stats$mean_temp)
+    pr_var <- robust_variation(annual_stats$total_pr)
+    pr_snow_var <- robust_variation(annual_stats$total_pr_snow)
+
+    tibble(
+      mvm_id = id,
+      temp_start = temp_start,
+      temp_change = temp_change,
+      temp_variation = temp_var,
+      pr_start = pr_start,
+      pr_change = pr_change,
+      pr_variation = pr_var,
+      pr_snow_start = pr_snow_start,
+      pr_snow_change = pr_snow_change,
+      pr_snow_variation = pr_snow_var
+    )
+  }, error = function(e) {
+    message(paste("Error processing ID:", id, "-", e$message))
+    return(NULL)  # Skip this ID
+  })
+})
+
+setwd(folder)
+
+climate_results%>% write_csv(file_climate_long)
+
+```
+
+
 ```{r}
 library(vtable)
-climate.all <-  read_csv(file_climate_processed) # %>% rename(mvm_id = id)
+setwd(folder)
+
+climate.all <-  read_csv(file_climate_processed) 
 climate.all %>% sumtable()
 ```
 
@@ -893,12 +982,17 @@ climate.all %>% sumtable()
 
 
 ```{r}
+setwd(folder)
+
 general <- read_csv(file_general)
+general %>% filter(is.na(lake_area_m2)| lake_area_m2 == 0)
 ```
 
 ## NMD
 
 ```{r}
+setwd(folder)
+
 
 NMD <- read_csv(file_NMD) %>% as_tibble()  %>% transmute(mvm_id = mvm_id,
                   `forest_wetland` = rowSums(select(., contains("på våtmark")), na.rm = TRUE),
@@ -915,14 +1009,18 @@ NMD
 
 
 ```{r}
+setwd(folder)
 
 HK <- read_csv(file_HK)
-HK
+
+HK 
 ```
 
 ## Runoff
 
 ```{r}
+
+setwd(folder)
 library(mblm)
 
 discharge.trend <- read_csv(file_discharge.trend) %>% mutate(sampling_date = date, q_m3_s = q, spec_q_mm_day = q/area_m2*1000*24*60*60, log_spec_q_mm_day = log10(spec_q_mm_day + 	0.000000000001 ), year = year(sampling_date)) 
@@ -1055,22 +1153,24 @@ discharge_sls <- discharge.omdrev %>%
     })
   })
 
-discharge <- bind_rows(discharge_trend, discharge_sls) %>%
+  discharge <- bind_rows(discharge_trend, discharge_sls) %>%
   distinct(mvm_id, .keep_all = TRUE)
 
+setwd(folder)
 write_csv(discharge, file_discharge.combined)
 
+```
+```{r}
+setwd(folder)
 discharge <- read_csv(file_discharge.combined)
-
 ```
 
 ## Soil Depth   
 
 ```{r}
-soil_depth <- read_csv(soil_depth_file)
+setwd(folder)
 
-#soil_depth_corr <- read_csv(r"(C:\Users\anlr0006\repos-win\DOC_catchments\corrections_results\soil_depth.csv)") %>% rename(mvm_id = id)
-# soil_depth %>% filter(!(mvm_id %in% soil_depth_corr$mvm_id)) %>%  bind_rows(soil_depth_corr) %>% write.csv(soil_depth_file, row.names = F) 
+soil_depth <- read_csv(soil_depth_file)
 
 soil_depth %>% transmute(mvm_id, 
                          soil_depth_mean = mean,
@@ -1083,8 +1183,10 @@ soil_depth
 
 ```{r}
 
-emep.1 <- read_csv(emep_file.1) %>% mutate(S_dep_mean_kg_ha_yr = log10(S_dep_mean_kg_ha), N_dep_mean_kg_ha_yr = log10(N_dep_mean_kg_ha))
-emep.2 <- read_csv(emep_file.2) %>% mutate(S_dep_mean_kg_ha_yr= log10(S_dep_mean_kg_ha), N_dep_mean_kg_ha_yr = log10(N_dep_mean_kg_ha))
+setwd(folder)
+
+# emep.1 <- read_csv(emep_file.1) %>% mutate(S_dep_mean_kg_ha_yr = log10(S_dep_mean_kg_ha), N_dep_mean_kg_ha_yr = log10(N_dep_mean_kg_ha))
+# emep.2 <- read_csv(emep_file.2) %>% mutate(S_dep_mean_kg_ha_yr= log10(S_dep_mean_kg_ha), N_dep_mean_kg_ha_yr = log10(N_dep_mean_kg_ha))
 
 emep.trend <- emep.1  %>%
   group_by(mvm_id) %>%
@@ -1213,6 +1315,10 @@ emep.sls <- emep.2  %>%
   })
 
 emep.sls
+
+emep.all <- bind_rows(emep.sls, emep.trend) %>% distinct()
+
+emep.all
 ```
 
 ## Chemistry as spatial variable
@@ -1226,7 +1332,7 @@ library(mblm)
 
 chem.trend <- df.chem.trend %>%
   mutate(year = year(sampling_date)) %>%
-  filter(month(sampling_date) %in% c(9,10,11)) %>%
+  filter(month(sampling_date) %in% c(9,10,11,12)) %>%
   mutate(
     toc_mg_l_c = log10(toc_mg_l_c),
     totn = log10(totn),
@@ -1236,7 +1342,7 @@ chem.trend <- df.chem.trend %>%
     cl_mg_l = log10(cl_mg_l),
     so4_mol = log10(so4_mol)
   ) %>%
-  group_by(mvp_id) %>%
+  group_by(mvm_id) %>%
   group_split() %>%
   map_dfr(function(df) {
     tryCatch({
@@ -1350,11 +1456,11 @@ chem.sls <- df.chem.sls  %>%
     cl_mg_l = log10(cl_mg_l),
     so4_mol = log10(so4_mol),
     year = year(sampling_date)) %>%
-  group_by(mvp_id) %>%
+  group_by(mvm_id) %>%
   group_split() %>%
   map_dfr(function(df) {
     tryCatch({
-      id <- unique(df$mvp_id)
+      id <- unique(df$mvm_id)
 
       # --- Start period (2008–2012) ---
       start_period <- filter(df, year >= 2008, year <= 2012)
@@ -1423,8 +1529,6 @@ df.chem.sls %>% filter(mvm_id ==107)
   
 ## NDVI
 
-Error processing ID: 35457 - Must group by variables found in `.data`.
-
 ```{r}
 
 file_list <- list.files(path = folder_NDVI, pattern = "*\\.csv$", full.names = FALSE)
@@ -1480,18 +1584,24 @@ NDVI.all <- map_dfr(seq_along(id.all), function(i) {
   })
 })
 
-
+setwd(folder)
 NDVI.all%>%
   mutate(across(everything(), ~ifelse(is.na(.), 0, .))) %>% write_csv(file_NDVI)
 
+```
+
+```{r}
+setwd(folder)
 NDVI.all <- read_csv(file_NDVI)
 NDVI.all
 ```
 
 
+
 ## Peat and ditches
 
 ```{r}
+setwd(folder)
 peat <- read.csv(file_peat) %>% select(-ditch_density_m_m2)
 peat
 ```
@@ -1502,10 +1612,12 @@ peat
 
 
 ```{r}
+
 drivers.sls <- chem.sls %>% mutate(mvm_id = as.integer(mvm_id)) %>%
   left_join(coordinates,     by = "mvm_id") %>%
+  left_join(climate_results %>% transmute(mvm_id = as.numeric(mvm_id), temp_clim_change = temp_change, pr_clim_change = pr_change, pr_snow_clim_change= pr_snow_change)) %>%
   left_join(soil_depth, by ="mvm_id") %>%
-  left_join(emep.sls,     by = "mvm_id") %>%
+  left_join(emep.all,     by = "mvm_id") %>%
   left_join(discharge,    by = "mvm_id")  %>%
   left_join(HK,           by = "mvm_id") %>%
   left_join(climate.all,  by = "mvm_id") %>%
@@ -1520,6 +1632,7 @@ drivers.trend <- chem.trend %>%
   left_join(coordinates,     by = "mvm_id") %>%
   left_join(emep.trend,     by = "mvm_id") %>%
   left_join(discharge,    by = "mvm_id") %>%
+  left_join(climate_results %>% transmute(mvm_id = as.numeric(mvm_id), temp_clim_change = temp_change, pr_clim_change = pr_change, pr_snow_clim_change= pr_snow_change)) %>%
   left_join(soil_depth, by ="mvm_id") %>%
   left_join(HK,           by = "mvm_id") %>%
   left_join(climate.all,  by = "mvm_id") %>%
@@ -1528,13 +1641,15 @@ drivers.trend <- chem.trend %>%
   left_join(NDVI.all%>% mutate(mvm_id = as.numeric(mvm_id)),     by = "mvm_id") %>%
   left_join(peat %>% rename(peat_pct_mineralsoil = peat_pct_Mineraljord, peat_pct_peat = peat_pct_Torv_total), by = "mvm_id") %>% mutate(ditch_density_km_km2 = total_ditch_length/ area_m2 * 1000) %>% select(-c(peat_pct_Vatten, total_ditch_length))
 
-drivers.trend
+chem.sls %>% filter(mvm_id %in% c(1378, 28936))
+
 ```
 
 
 # Drivers
 
 ```{r}
+setwd(folder)
 
 cols_to_front <- c("mvm_id", "stationname", "x_e_koord","y_n_koord")
 drivers.sls%>%
@@ -1542,6 +1657,10 @@ drivers.sls%>%
 
 drivers.trend %>%
   select(all_of(cols_to_front), everything())%>% write.csv(file_drivers.trend)
+drivers.trend %>%
+  select(all_of(cols_to_front), everything())
+drivers.sls%>%
+  select(all_of(cols_to_front), everything())
 
 ```
 
