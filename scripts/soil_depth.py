@@ -7,7 +7,7 @@ parser.add_argument("-o", type=str, help="the output file")
 parser.add_argument("-id",type = str, default = "mvm_id", help = "id variable")
 
 """
-Requires acess to the sgu soildepth raster.  
+Requires access to the sgu soil depth raster.  
 Inputs are: 
     - soil depth raster file location
     - catchments
@@ -27,9 +27,13 @@ import os
 args = parser.parse_args()
 
 if args.r == "default":
-    raster_path = r"\\gis.slu.se\gisdata\sgu\jorddjupsmodell\vector\epsg3006\2024-02-22\delivery\jorddjup_10x10m\jorddjup_10x10m.tif"
+    raster_path = r".\input\sgu\jorddjupsmodell\vector\epsg3006\2024-02-22\delivery\jorddjup_10x10m\jorddjup_10x10m.tif"
+    if not os.path.exists(raster_path):
+        raise FileNotFoundError(f"Default raster path does not exist: {raster_path}. Please provide a valid path.")
 else: 
     raster_path = args.r
+    if not os.path.exists(raster_path):
+        raise FileNotFoundError(f"Provided raster path does not exist: {raster_path}. Please provide a valid path.")
 
 
 # Load the catchments that I am running it for

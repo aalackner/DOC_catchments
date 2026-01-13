@@ -1,5 +1,5 @@
 # Script for calculating peat area
-#%% Only needed if used from terminal, otherwise the first block needs to be commented out
+
 #%% Only needed if used from terminal, otherwise the first block needs to be commented out
 import argparse
 parser = argparse.ArgumentParser()
@@ -18,30 +18,11 @@ from arcpy.sa import *
 import sys
 import pandas as pd
 
-#%%
-# class Args:
-#     pass
-
-# args = Args()
-
-# args.id = "mvmid"  # Default value for id variable
-
-
-
-# # # Example manual assignments
-# args.c = r"C:\Users\anlr0006\repos-win\DOC_catchments\data\aro_trendsjoar_106_250408.zip"
-# args.o = r"C:\Users\anlr0006\repos-win\DOC_catchments\results\slu_sgu\ditch_test.csv"
-# args.r = r"C:\Users\anlr0006\repos-win\DOC_catchments\input\Dikeskarta"
-# args.gdb = r"C:\Users\anlr0006\repos-win\DOC_catchments\results\arcpy_workspace\test_ditches.gdb"
-
 #%% set the workspace and populate the gdb
 import os.path
 
 # arcpy.management.CreateFileGDB(os.path.dirname(args.gdb), os.path.basename(args.gdb), "CURRENT")
 arcpy.env.workspace = os.path.join(args.gdb)
-
-# SET PYTHON WORKING DIR
-#os.chdir(os.path.join(r"C:\Users\anlr0006\repos-win\DOC_catchments\results\arcpy_workspace", args.gdb)) 
 
 arcpy.env.overwriteOutput = True
 

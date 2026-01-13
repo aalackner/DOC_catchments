@@ -16,23 +16,6 @@ from arcpy.sa import *
 
 import sys
 
-#%%
-class Args:
-    pass
-
-args = Args()
-
-args.id = "mvm_id"  # Default value for id variable
-
-
-
-# # Example manual assignments
-args.c = r"\\storage.slu.se\Home$\anlr0006\My Documents\04_Projects\11_Lakes\01_data\02_raw_data\catchments\test.zip"
-args.o = r"C:\Users\anlr0006\repos-win\DOC_catchments\results\slu_sgu\ditch_test.csv"
-args.r = r"C:\Users\anlr0006\repos-win\DOC_catchments\input\Dikeskarta"
-args.pr = r"C:\Users\anlr0006\repos-win\DOC_catchments\input\Torvkarta\Klassad_torvkarta\ClassifiedPeatMap.tif"
-args.gdb = r"C:\Users\anlr0006\repos-win\DOC_catchments\results\arcpy_workspace\test_ditches.gdb"
-
 #%% set the workspace and populate the gdb
 import os.path
 
@@ -40,7 +23,6 @@ import os.path
 arcpy.env.workspace = os.path.join(args.gdb)
 
 # SET PYTHON WORKING DIR
-#os.chdir(os.path.join(r"C:\Users\anlr0006\repos-win\DOC_catchments\results\arcpy_workspace", args.gdb)) 
 
 arcpy.env.overwriteOutput = True
 

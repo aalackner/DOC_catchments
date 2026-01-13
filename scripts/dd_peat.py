@@ -448,5 +448,4 @@ df_final = final[[id_var, 'total_ditch_length',
 # df_final.drop_duplicates(subset=id_var, keep='first', inplace = True)
 
 # %%
-#file = r"/home/anlr0006/mnt/anna/My Documents/04_Projects/11_Lakes/01_data/03_processed_data/drivers/peat_ditches_all.csv"
 df_final.to_csv(output_file, index=False)

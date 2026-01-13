@@ -20,23 +20,6 @@ file_map = args.map
 #%%
 import geopandas as gpd
 
-# file_catch = "data/corrected_all_sls.shp"
-# output_folder = "corrected/runoff"
-# x_coord = "x_utlopp"
-# y_coord = "y_utlopp"
-# id_var = "mvm_id"
-# file_svar = "input/SMHI/SVAR2022_delavrinningsomraden.zip"
-# file_map = "false"
-
-
-
-# file_catch = "../data/test.shp"
-# output_folder = "../test_results/runoff"
-# x_coord = "x_utlopp"
-# y_coord = "y_utlopp"
-# id_var = "id"
-# file_svar = "../input/SMHI/SVAR2022_delavrinningsomraden.zip"
-# file_map = "true"
 #%%
 
 if file_catch.endswith('.shp'):

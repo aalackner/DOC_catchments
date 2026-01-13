@@ -4,6 +4,7 @@ $id = "mvm_id"
 # Collected input file rename finle paths according to your own locations
 $ditchdatabase = ".\input\Dikeskarta\mosaic_ditches.gdb"
 $peat = ".\input\Torvkarta\Klassad_torvkarta\ClassifiedPeatMap.tif"
+$soil_depth = ".\input\SGU\jorddjupsmodell\vector\epsg3006\2024-02-22\delivery\jorddjup_10x10m\jorddjup_10x10m.tif"
 
 $climate_folder = ".\input\SMHI"
 $jennings = ".\input\jennings\jennings_et_al_2018_file4_temp50_raster.tif"
@@ -41,7 +42,7 @@ python scripts\dd_peat.py -o $o_peat -d $ditchdatabase -pr $peat -c $cats -id $i
 
 Write-Output "peat and ditch done"
 
-python scripts\soil_depth.py -r "default"  -c $cats -o  $o_soil_depth -id $id
+python scripts\soil_depth.py -r $soil_depth  -c $cats -o  $o_soil_depth -id $id
 
 Write-Output "soil depth done"
 
