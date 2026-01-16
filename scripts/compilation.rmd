@@ -54,7 +54,7 @@ file_peat <- r"(etc\peat_ditches_merged.csv)"
 # Soil depth
 soil_depth_file <- r"(etc\soil_depth_merged.csv)"
 
-
+file_liming <- r"(etc\liming.csv)"
 ############################ RESULTS ##########################################
 
 # Chemistry Time series
@@ -235,7 +235,7 @@ convertible <- sapply(df.chem, function(col) {
 
 
 # selecting only omdrev and trend studyName, remove this part in case you care about all the samples taken at a station, no matter what program
-df.chem <- df.chem %>% mutate(sampling_date = as.Date(sampling_date))%>% filter(grepl('trend|omdre', studyName)| mvm_id == 118) %>% # if there are multiple samples on the same day , pick the one closest to 0.5 
+df.chem <- df.chem %>% mutate(sampling_date = as.Date(sampling_date))%>% filter(grepl('trend|omdre|IKEU', studyName)) %>% # if there are multiple samples on the same day , pick the one closest to 0.5 
   mutate(across(-c(sampling_date,subprogramName, studyName), ~ suppressWarnings(as.numeric(as.character(.)))))
   
 
@@ -908,12 +908,12 @@ Save the preprocessed chemistry file / files.
 setwd(folder)
 
 
-df.chem  %>% filter( grepl('trend', studyName) | (mvm_id == 118 & grepl("IKEU", studyName)))  %>% group_by(mvm_id) %>% filter(n() > 1) %>% filter(year < 2025) %>% ungroup()-> df.chem.trend
+df.chem  %>% filter( grepl('trend', studyName) | (mvm_id %in% c(118, 77, 108, 100) & grepl("IKEU", studyName)))  %>% group_by(mvm_id) %>% filter(n() > 1) %>% filter(year < 2025) %>% ungroup()-> df.chem.trend
 
 
 df.chem.sls %>% left_join(coordinates%>% mutate(mvm_id = as.numeric(mvm_id) )) %>% select(-randomly_selected)%>% mutate(year = year(sampling_date)) %>% write.csv(file_chemistry.sls, fileEncoding = "UTF-8", row.names = FALSE)
 
-df.chem.trend %>% left_join(coordinates%>% mutate(mvm_id = as.numeric(mvm_id), ))%>% mutate(year = year(sampling_date)) %>% filter(!mvm_id  %in% c(77, 108,118,6151))  %>% write.csv(file_chemistry.trend, fileEncoding = "UTF-8", row.names = FALSE) # filter out these in order to match list of trend stations by Hav
+df.chem.trend %>% left_join(coordinates%>% mutate(mvm_id = as.numeric(mvm_id), ))%>% mutate(year = year(sampling_date)) %>% filter(!mvm_id  %in% c(6151))  %>% write.csv(file_chemistry.trend, fileEncoding = "UTF-8", row.names = FALSE) # filter out these in order to match list of trend stations by Hav
 
 df.chem.trend %>% filter(mvm_id == 54| mvm_id == 100) # rmvm_id 100 because there are limited samples after 2015 that have pH and alk/acid 
 
@@ -1511,7 +1511,7 @@ chem.trend <- df.chem.trend%>%
       alk_acid_start <- mean(start_period$alk_acid_mmol, na.rm = TRUE)
       absf420_start  <- mean(start_period$absf420, na.rm = TRUE)
       pH_start    <- mean(start_period$pH, na.rm = TRUE)
-      ec20_start  <- mean(start_period$ec25_mS_m, na.rm = TRUE)
+      ec25_start  <- mean(start_period$ec25_mS_m, na.rm = TRUE)
       cl_start    <- mean(start_period$cl_mg_l, na.rm = TRUE)
       so4_start   <- mean(start_period$so4_mol, na.rm = TRUE)
 
@@ -1531,7 +1531,7 @@ chem.trend <- df.chem.trend%>%
           mean_alk_acid  = mean(alk_acid_mmol, na.rm = TRUE),
           mean_absf      = mean(absf420, na.rm = TRUE),
           mean_pH        = mean(pH, na.rm = TRUE),
-          mean_ec20      = mean(ec25_mS_m, na.rm = TRUE),
+          mean_ec25      = mean(ec25_mS_m, na.rm = TRUE),
           
           .groups = "drop"
         )
@@ -1551,7 +1551,7 @@ chem.trend <- df.chem.trend%>%
       alk_acid_change  <- slope_or_na("mean_alk_acid", annual_stats)
       absf420_change      <- slope_or_na("mean_absf", annual_stats)
       pH_change        <- slope_or_na("mean_pH", annual_stats)
-      ec20_change      <- slope_or_na("mean_ec20", annual_stats)
+      ec25_change      <- slope_or_na("mean_ec25", annual_stats)
       
       # Variation calculations
       toc_var       <- robust_variation(annual_stats$mean_toc)
@@ -1566,7 +1566,7 @@ chem.trend <- df.chem.trend%>%
       alk_acid_var  <- robust_variation(annual_stats$mean_alk_acid)
       absf420_var      <- robust_variation(annual_stats$mean_absf)
       pH_var        <- robust_variation(annual_stats$mean_pH)
-      ec20_var      <- robust_variation(annual_stats$mean_ec20)
+      ec25_var      <- robust_variation(annual_stats$mean_ec25)
 
 
       tibble(
@@ -1583,7 +1583,7 @@ chem.trend <- df.chem.trend%>%
         alk_acid_start, alk_acid_change, alk_acid_var,
         absf420_start, absf420_change, absf420_var,
         pH_start, pH_change, pH_var,
-        ec20_start, ec20_change, ec20_var
+        ec25_start, ec25_change, ec25_var
       )
 
       
@@ -1633,7 +1633,7 @@ chem.sls <- df.chem.sls  %>%
       alk_acid_start   <- get_mean_or_first_pre2018(df, "alk_acid_mmol")
       absf420_start    <- get_mean_or_first_pre2018(df, "absf420")
       pH_start         <- get_mean_or_first_pre2018(df, "pH")
-      ec20_start       <- get_mean_or_first_pre2018(df, "ec25_mS_m")
+      ec25_start       <- get_mean_or_first_pre2018(df, "ec25_mS_m")
       cl_start         <- get_mean_or_first_pre2018(df, "cl_mg_l")
       so4_start        <- get_mean_or_first_pre2018(df, "so4_mol")
 
@@ -1652,7 +1652,7 @@ chem.sls <- df.chem.sls  %>%
       alk_acid_change   <- get_variable_change(df, "alk_acid_mmol")
       absf420_change    <- get_variable_change(df, "absf420")
       pH_change         <- get_variable_change(df, "pH")
-      ec20_change       <- get_variable_change(df, "ec25_mS_m")
+      ec25_change       <- get_variable_change(df, "ec25_mS_m")
       cl_change         <- get_variable_change(df, "cl_mg_l")
       so4_change        <- get_variable_change(df, "so4_mol")
 
@@ -1671,7 +1671,7 @@ chem.sls <- df.chem.sls  %>%
   alk_acid_start,alk_acid_change,
   absf420_start,absf420_change,
   pH_start,pH_change,
-  ec20_start, ec20_change
+  ec25_start, ec25_change
 )
     }, error = function(e) {
       message(paste("Error processing mvm_id:", unique(df$mvm_id), "-", e$message))
@@ -1766,6 +1766,13 @@ peat <- read.csv(file_peat) %>% select(-ditch_density_m_m2)
 peat
 ```
 
+## liming
+
+```{r}
+setwd(folder)
+liming <- read_csv(file_liming)
+liming 
+```
 
 
 ## Combine everything
@@ -1783,6 +1790,7 @@ drivers.sls <- chem.sls %>% mutate(mvm_id = as.integer(mvm_id)) %>%
   left_join(climate.all,  by = "mvm_id") %>%
   left_join(general,      by = "mvm_id") %>%
   left_join(NMD,          by = "mvm_id") %>%
+  left_join(liming, by = "mvm_id") %>% 
   left_join(NDVI.all %>% group_by(mvm_id) %>% slice(1) %>% ungroup() %>% mutate(mvm_id = as.numeric(mvm_id)),     by = "mvm_id") %>%
   left_join(peat%>% rename(peat_pct_mineralsoil = peat_pct_Mineraljord, peat_pct_peat = peat_pct_Torv_total), by = "mvm_id") %>% mutate(ditch_density = total_ditch_length/ area_m2 * 1000) %>% select(-c(peat_pct_Vatten, total_ditch_length))%>%
   rename_with(~ gsub("variation", "var", .x)) 
@@ -1801,7 +1809,7 @@ drivers.trend <- chem.trend %>%
   left_join(NMD,          by = "mvm_id") %>% 
   left_join(NDVI.all %>% group_by(mvm_id) %>% slice(1) %>% ungroup() %>% mutate(mvm_id = as.numeric(mvm_id)),     by = "mvm_id") %>%
   left_join(peat %>% rename(peat_pct_mineralsoil = peat_pct_Mineraljord, peat_pct_peat = peat_pct_Torv_total), by = "mvm_id") %>% mutate(ditch_density = total_ditch_length/ area_m2 * 1000) %>% select(-c(peat_pct_Vatten, total_ditch_length))%>%
-  rename_with(~ gsub("variation", "var", .x)) %>% filter(!mvm_id  %in% c(77, 108,118,6151)) # filter out these in order to match list of trend stations by Hav
+  rename_with(~ gsub("variation", "var", .x)) %>% filter(!mvm_id  %in% c(6151)) # filter out these in order to match list of trend stations by Hav
 
 drivers.trend
 
@@ -1819,8 +1827,11 @@ drivers.sls%>%
 
 drivers.trend %>%
   select(all_of(cols_to_front), everything())%>% write.csv(file_drivers.trend, fileEncoding = "UTF-8", row.names = FALSE)
+
+
 drivers.trend %>%
-  select(all_of(cols_to_front), everything()) 
+  select(all_of(cols_to_front), everything())
+
 drivers.sls%>%
   select(all_of(cols_to_front), everything()) 
 
