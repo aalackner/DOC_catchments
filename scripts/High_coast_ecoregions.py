@@ -113,7 +113,7 @@ if args.cent == "True":
 # use x_utlopp and y_utlopp as Sweref tm 99 coordinates (same as all otehr spatial crs system used) to find the ecoregion of the outlet and also add it to the results
 outlets = cats[[id_var, x_coord, y_coord]].dropna()
 # Convert outlets DataFrame to GeoDataFrame using x and y as coordinates
-outlets = outlets.rename(columns={'x_utlopp': 'x', 'y_utlopp': 'y'})
+outlets = outlets.rename(columns={x_coord: 'x', y_coord: 'y'})
 outlets_gdf = gpd.GeoDataFrame(
     outlets,
     geometry=gpd.points_from_xy(outlets['x'], outlets['y']),
